@@ -3,11 +3,21 @@ using UnityEditor;
 
 public static class TerrainTestMenu
 {
+    private static bool TryGetTerrain(out CustomTerrain terrain)
+    {
+        terrain = Object.FindFirstObjectByType<CustomTerrain>();
+        if (terrain == null)
+        {
+            Debug.LogWarning("No CustomTerrain object found in the scene.");
+            return false;
+        }
+        return true;
+    }
+
     [MenuItem("Tools/Terrain Test/Reset")]
     public static void ResetTerrain()
     {
-        var terrain = Object.FindFirstObjectByType<CustomTerrain>();
-        if (terrain != null)
+        if (TryGetTerrain(out var terrain))
         {
             terrain.ResetTerrain();
             Debug.Log("Terrain reset complete.");
@@ -17,8 +27,7 @@ public static class TerrainTestMenu
     [MenuItem("Tools/Terrain Test/Generate Voronoi")]
     public static void GenerateVoronoi()
     {
-        var terrain = Object.FindFirstObjectByType<CustomTerrain>();
-        if (terrain != null)
+        if (TryGetTerrain(out var terrain))
         {
             terrain.Voronoi();
             Debug.Log($"Voronoi generated with Peaks={terrain.voronoiPeaks}, Falloff={terrain.voronoiFalloff}, DropOff={terrain.voronoiDropoff}");
