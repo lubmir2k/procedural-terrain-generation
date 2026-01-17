@@ -10,7 +10,7 @@ public static class Utils
     /// <param name="octaves">Number of noise layers to combine</param>
     /// <param name="persistence">How much each octave's amplitude changes (typically 0.5)</param>
     /// <returns>Height value normalized between 0 and 1</returns>
-    public static float fBM(float x, float y, int octaves, float persistence)
+    public static float FBM(float x, float y, int octaves, float persistence)
     {
         float total = 0;
         float frequency = 1;

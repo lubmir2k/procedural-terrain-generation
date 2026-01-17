@@ -241,7 +241,7 @@ public class CustomTerrain : MonoBehaviour
             {
                 // Use Fractal Brownian Motion for more natural terrain
                 // Offset is added BEFORE scaling to avoid cubic artifacts
-                heightMap[x, z] += Utils.fBM(
+                heightMap[x, z] += Utils.FBM(
                     (x + perlinOffsetX) * perlinXScale,
                     (z + perlinOffsetY) * perlinYScale,
                     perlinOctaves,
@@ -271,7 +271,7 @@ public class CustomTerrain : MonoBehaviour
                 // Apply each Perlin parameter set
                 foreach (PerlinParameters p in perlinParameters)
                 {
-                    heightMap[x, z] += Utils.fBM(
+                    heightMap[x, z] += Utils.FBM(
                         (x + p.mPerlinOffsetX) * p.mPerlinXScale,
                         (z + p.mPerlinOffsetY) * p.mPerlinYScale,
                         p.mPerlinOctaves,
@@ -292,21 +292,14 @@ public class CustomTerrain : MonoBehaviour
             return;
         }
 
-        // Reset terrain first to avoid accumulation
-        ResetTerrain();
-
-        // Generate base terrain using multiple Perlin noise
-        MultiplePerlinTerrain();
-
-        // Get the height map we just generated
+        // Get the current height map
         float[,] heightMap = terrainData.GetHeights(0, 0,
             terrainData.heightmapResolution,
             terrainData.heightmapResolution);
 
-        // Apply ridge noise transformation
+        // Apply ridge noise transformation to existing terrain
         // Formula: newHeight = 1 - |oldHeight * 2 - 1|
-        // Scales 0-1 to -1 to 1, takes absolute, inverts to create sharp ridges
-        // Output range: 0 (at extremes) to 1 (at midpoint)
+        // This transforms values in the [0, 1] range to create sharp ridges
         for (int x = 0; x < terrainData.heightmapResolution; x++)
         {
             for (int z = 0; z < terrainData.heightmapResolution; z++)

@@ -147,7 +147,7 @@ public class CustomTerrainEditor : Editor
 
             // fBM parameters
             EditorGUILayout.IntSlider(perlinOctaves, 1, 10, new GUIContent("Octaves"));
-            EditorGUILayout.Slider(perlinPersistence, 0.1f, 10f, new GUIContent("Persistence"));
+            EditorGUILayout.Slider(perlinPersistence, 0.1f, 1f, new GUIContent("Persistence"));
             EditorGUILayout.Slider(perlinHeightScale, 0f, 1f, new GUIContent("Height Scale"));
 
             if (GUILayout.Button("Generate Perlin"))
