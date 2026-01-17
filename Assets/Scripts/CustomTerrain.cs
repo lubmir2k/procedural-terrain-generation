@@ -65,6 +65,18 @@ public class CustomTerrain : MonoBehaviour
         new PerlinParameters()
     };
 
+
+    // ---------------------------
+    // Voronoi Tessellation
+    // ---------------------------
+    public float voronoiFalloff = 0.5f;
+    public float voronoiDropoff = 2.0f;
+    public float voronoiMinHeight = 0.1f;
+    public float voronoiMaxHeight = 0.5f;
+    public int voronoiPeaks = 5;
+    public enum VoronoiType { Linear = 0, Power = 1, Combined = 2, SinPow = 3, Perlin = 4 }
+    public VoronoiType voronoiType = VoronoiType.Linear;
+
     void OnEnable()
     {
         terrain = GetComponent<Terrain>();
@@ -312,6 +324,115 @@ public class CustomTerrain : MonoBehaviour
         }
 
         // Apply the modified heightmap back to the terrain
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+
+    /// <summary>
+    /// Generates terrain peaks using a Voronoi-inspired algorithm.
+    /// Note: This is a "multiple peak influence" algorithm where each peak's height
+    /// contribution is calculated based on distance falloff. It creates overlapping
+    /// radial gradients rather than the sharp cell boundaries of true Voronoi tessellation.
+    /// The name follows the course material convention.
+    /// </summary>
+    public void Voronoi()
+    {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        float[,] heightMap = GetHeightMap();
+        int resolution = terrainData.heightmapResolution;
+
+        // Calculate max distance for normalization once (diagonal of terrain)
+        float maxDistance = resolution * Mathf.Sqrt(2f);
+
+        // Generate random peak positions and heights
+        for (int p = 0; p < voronoiPeaks; p++)
+        {
+            // Random position within terrain bounds
+            int peakX = UnityEngine.Random.Range(0, resolution);
+            int peakZ = UnityEngine.Random.Range(0, resolution);
+            float peakHeight = UnityEngine.Random.Range(voronoiMinHeight, voronoiMaxHeight);
+
+            // Set the peak height
+            if (heightMap[peakX, peakZ] < peakHeight)
+            {
+                heightMap[peakX, peakZ] = peakHeight;
+            }
+
+            // Raise terrain around the peak based on distance
+            for (int x = 0; x < resolution; x++)
+            {
+                for (int z = 0; z < resolution; z++)
+                {
+                    // Skip the peak itself
+                    if (x == peakX && z == peakZ) continue;
+
+                    // Calculate distance manually to avoid Vector2 allocations in tight loop
+                    float dx = x - peakX;
+                    float dz = z - peakZ;
+                    float distance = Mathf.Sqrt(dx * dx + dz * dz);
+
+                    // Normalize distance to 0-1 range
+                    float normalizedDistance = distance / maxDistance;
+
+                    // Calculate height contribution based on selected Voronoi type
+                    float heightContribution;
+
+                    switch (voronoiType)
+                    {
+                        case VoronoiType.Combined:
+                            // Linear falloff + Power curve
+                            heightContribution = peakHeight
+                                - (normalizedDistance * voronoiFalloff)
+                                - Mathf.Pow(normalizedDistance, voronoiDropoff);
+                            break;
+
+                        case VoronoiType.Power:
+                            // Power curve with falloff multiplier
+                            heightContribution = peakHeight
+                                - Mathf.Pow(normalizedDistance, voronoiDropoff) * voronoiFalloff;
+                            break;
+
+                        case VoronoiType.SinPow:
+                            // Sin + Power combination for meringue-like peaks
+                            // Guard against division by zero
+                            float sinComponent = !Mathf.Approximately(voronoiDropoff, 0f)
+                                ? (Mathf.Sin(normalizedDistance * 2 * Mathf.PI) / voronoiDropoff)
+                                : 0f;
+                            heightContribution = peakHeight
+                                - Mathf.Pow(normalizedDistance * 3, voronoiFalloff)
+                                - sinComponent;
+                            break;
+
+                        case VoronoiType.Perlin:
+                            // Linear falloff combined with Perlin noise for natural-looking slopes
+                            heightContribution = (peakHeight - (normalizedDistance * voronoiFalloff))
+                                + Utils.FBM(
+                                    (x + perlinOffsetX) * perlinXScale,
+                                    (z + perlinOffsetY) * perlinYScale,
+                                    perlinOctaves,
+                                    perlinPersistence) * perlinHeightScale;
+                            break;
+
+                        default: // Linear
+                            // Simple linear falloff
+                            heightContribution = peakHeight - (normalizedDistance * voronoiFalloff);
+                            break;
+                    }
+
+                    // Only raise terrain, never lower it (for this peak)
+                    if (heightContribution > heightMap[x, z])
+                    {
+                        heightMap[x, z] = heightContribution;
+                    }
+                }
+            }
+        }
+
         terrainData.SetHeights(0, 0, heightMap);
     }
 
