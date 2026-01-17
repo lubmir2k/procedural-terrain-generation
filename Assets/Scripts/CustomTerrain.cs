@@ -30,19 +30,28 @@ public class CustomTerrain : MonoBehaviour
 
     void OnEnable()
     {
-        terrain = this.GetComponent<Terrain>();
-        if (terrain != null)
-        {
-            terrainData = terrain.terrainData;
-        }
-        else
+        terrain = GetComponent<Terrain>();
+        if (terrain == null)
         {
             Debug.LogError("CustomTerrain requires a Terrain component on the same GameObject.", this);
+            return;
+        }
+
+        terrainData = terrain.terrainData;
+        if (terrainData == null)
+        {
+            Debug.LogError("The Terrain component is missing a TerrainData asset.", this);
         }
     }
 
     public void RandomTerrain()
     {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
         // Get the heightmap from the terrain
         float[,] heightMap = terrainData.GetHeights(0, 0,
             terrainData.heightmapResolution,
@@ -66,6 +75,12 @@ public class CustomTerrain : MonoBehaviour
 
     public void ResetTerrain()
     {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
         // Create a new empty heightmap (all zeros)
         float[,] heightMap = new float[terrainData.heightmapResolution,
             terrainData.heightmapResolution];
@@ -76,6 +91,17 @@ public class CustomTerrain : MonoBehaviour
 
     public void LoadTexture()
     {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+        if (heightMapImage == null)
+        {
+            Debug.LogError("HeightMap Image is not assigned.", this);
+            return;
+        }
+
         // Create a new heightmap array
         float[,] heightMap = new float[terrainData.heightmapResolution,
             terrainData.heightmapResolution];
@@ -83,6 +109,7 @@ public class CustomTerrain : MonoBehaviour
         // Pre-fetch all pixels for performance (avoid GetPixel in loop)
         Color[] mapColors = heightMapImage.GetPixels();
         int mapWidth = heightMapImage.width;
+        int mapHeight = heightMapImage.height;
 
         // Loop through every point in the heightmap
         for (int x = 0; x < terrainData.heightmapResolution; x++)
@@ -90,8 +117,9 @@ public class CustomTerrain : MonoBehaviour
             for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
                 // Get the pixel from the pre-fetched array at the scaled position
-                int pixelX = (int)(x * heightMapScale.x);
-                int pixelZ = (int)(z * heightMapScale.z);
+                // Clamp to prevent IndexOutOfRangeException
+                int pixelX = Mathf.Clamp((int)(x * heightMapScale.x), 0, mapWidth - 1);
+                int pixelZ = Mathf.Clamp((int)(z * heightMapScale.z), 0, mapHeight - 1);
                 heightMap[x, z] = mapColors[pixelZ * mapWidth + pixelX].grayscale
                     * heightMapScale.y;
             }
@@ -104,6 +132,17 @@ public class CustomTerrain : MonoBehaviour
 
     public void LoadTextureAdditive()
     {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+        if (heightMapImage == null)
+        {
+            Debug.LogError("HeightMap Image is not assigned.", this);
+            return;
+        }
+
         // Get EXISTING heights from terrain instead of creating zeros
         float[,] heightMap = terrainData.GetHeights(0, 0,
             terrainData.heightmapResolution,
@@ -112,6 +151,7 @@ public class CustomTerrain : MonoBehaviour
         // Pre-fetch all pixels for performance (avoid GetPixel in loop)
         Color[] mapColors = heightMapImage.GetPixels();
         int mapWidth = heightMapImage.width;
+        int mapHeight = heightMapImage.height;
 
         // Loop through every point in the heightmap
         for (int x = 0; x < terrainData.heightmapResolution; x++)
@@ -119,8 +159,9 @@ public class CustomTerrain : MonoBehaviour
             for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
                 // Get the pixel from the pre-fetched array at the scaled position
-                int pixelX = (int)(x * heightMapScale.x);
-                int pixelZ = (int)(z * heightMapScale.z);
+                // Clamp to prevent IndexOutOfRangeException
+                int pixelX = Mathf.Clamp((int)(x * heightMapScale.x), 0, mapWidth - 1);
+                int pixelZ = Mathf.Clamp((int)(z * heightMapScale.z), 0, mapHeight - 1);
                 // ADD texture height to existing height with +=
                 heightMap[x, z] += mapColors[pixelZ * mapWidth + pixelX].grayscale
                     * heightMapScale.y;
