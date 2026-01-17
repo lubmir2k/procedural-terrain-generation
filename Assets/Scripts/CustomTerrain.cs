@@ -65,6 +65,16 @@ public class CustomTerrain : MonoBehaviour
         new PerlinParameters()
     };
 
+
+    // ---------------------------
+    // Voronoi Tessellation
+    // ---------------------------
+    public float voronoiFalloff = 2.0f;
+    public float voronoiDropoff = 2.0f;
+    public float voronoiMinHeight = 0.1f;
+    public float voronoiMaxHeight = 0.5f;
+    public int voronoiPeaks = 5;
+
     void OnEnable()
     {
         terrain = GetComponent<Terrain>();
@@ -312,6 +322,69 @@ public class CustomTerrain : MonoBehaviour
         }
 
         // Apply the modified heightmap back to the terrain
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+
+    public void Voronoi()
+    {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        float[,] heightMap = GetHeightMap();
+
+        // Generate random peak positions and heights
+        for (int p = 0; p < voronoiPeaks; p++)
+        {
+            // Random position within terrain bounds
+            int peakX = UnityEngine.Random.Range(0, terrainData.heightmapResolution);
+            int peakZ = UnityEngine.Random.Range(0, terrainData.heightmapResolution);
+            float peakHeight = UnityEngine.Random.Range(voronoiMinHeight, voronoiMaxHeight);
+
+            // Set the peak height
+            if (heightMap[peakX, peakZ] < peakHeight)
+            {
+                heightMap[peakX, peakZ] = peakHeight;
+            }
+
+            // Calculate max distance for normalization (diagonal of terrain)
+            float maxDistance = Vector2.Distance(
+                new Vector2(0, 0),
+                new Vector2(terrainData.heightmapResolution, terrainData.heightmapResolution));
+
+            // Raise terrain around the peak based on distance
+            for (int x = 0; x < terrainData.heightmapResolution; x++)
+            {
+                for (int z = 0; z < terrainData.heightmapResolution; z++)
+                {
+                    // Skip the peak itself
+                    if (x == peakX && z == peakZ) continue;
+
+                    // Calculate distance from this point to the peak
+                    float distance = Vector2.Distance(
+                        new Vector2(x, z),
+                        new Vector2(peakX, peakZ));
+
+                    // Normalize distance to 0-1 range
+                    float normalizedDistance = distance / maxDistance;
+
+                    // Calculate height contribution using falloff curve
+                    // Height decreases as distance increases
+                    float heightContribution = peakHeight -
+                        (peakHeight * Mathf.Pow(normalizedDistance, voronoiDropoff) * voronoiFalloff);
+
+                    // Only raise terrain, never lower it (for this peak)
+                    if (heightContribution > heightMap[x, z])
+                    {
+                        heightMap[x, z] = heightContribution;
+                    }
+                }
+            }
+        }
+
         terrainData.SetHeights(0, 0, heightMap);
     }
 
