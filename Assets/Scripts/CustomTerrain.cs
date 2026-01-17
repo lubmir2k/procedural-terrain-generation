@@ -292,7 +292,10 @@ public class CustomTerrain : MonoBehaviour
             return;
         }
 
-        // Get the current height map
+        // Note: This method intentionally uses GetHeights() instead of GetHeightMap()
+        // to always transform the existing terrain, ignoring the resetTerrain flag.
+        // RidgeNoise is a post-process effect meant to be applied after generating
+        // terrain with other methods (Single Perlin, Multiple Perlin, etc.).
         float[,] heightMap = terrainData.GetHeights(0, 0,
             terrainData.heightmapResolution,
             terrainData.heightmapResolution);
