@@ -304,14 +304,14 @@ public class CustomTerrain : MonoBehaviour
             terrainData.heightmapResolution);
 
         // Apply ridge noise transformation
-        // Formula: newHeight = 1 - |oldHeight - 0.5|
-        // This shifts values down, takes absolute (flips negatives up),
-        // then inverts to create sharp ridges
+        // Formula: newHeight = 1 - |oldHeight * 2 - 1|
+        // Scales 0-1 to -1 to 1, takes absolute, inverts to create sharp ridges
+        // Output range: 0 (at extremes) to 1 (at midpoint)
         for (int x = 0; x < terrainData.heightmapResolution; x++)
         {
             for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
-                heightMap[x, z] = 1 - Mathf.Abs(heightMap[x, z] - 0.5f);
+                heightMap[x, z] = 1 - Mathf.Abs(heightMap[x, z] * 2f - 1f);
             }
         }
 
