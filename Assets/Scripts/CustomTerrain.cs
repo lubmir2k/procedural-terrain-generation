@@ -74,6 +74,8 @@ public class CustomTerrain : MonoBehaviour
     public float voronoiMinHeight = 0.1f;
     public float voronoiMaxHeight = 0.5f;
     public int voronoiPeaks = 5;
+    public enum VoronoiType { Linear = 0, Power = 1, Combined = 2, SinPow = 3 }
+    public VoronoiType voronoiType = VoronoiType.Linear;
 
     void OnEnable()
     {
@@ -371,13 +373,34 @@ public class CustomTerrain : MonoBehaviour
                     // Normalize distance to 0-1 range
                     float normalizedDistance = distance / maxDistance;
 
-                    // Calculate height contribution using combined linear and curved falloff
-                    // Formula: Height = Peak - (Distance * Falloff) - Power(Distance, DropOff)
-                    // Falloff: controls linear steepness (higher = steeper)
-                    // DropOff: controls curvature (>1 = bulging outward, <1 = concave/scooping)
-                    float heightContribution = peakHeight
-                        - (normalizedDistance * voronoiFalloff)
-                        - Mathf.Pow(normalizedDistance, voronoiDropoff);
+                    // Calculate height contribution based on selected Voronoi type
+                    float heightContribution = 0f;
+
+                    if (voronoiType == VoronoiType.Combined)
+                    {
+                        // Linear falloff + Power curve
+                        heightContribution = peakHeight
+                            - (normalizedDistance * voronoiFalloff)
+                            - Mathf.Pow(normalizedDistance, voronoiDropoff);
+                    }
+                    else if (voronoiType == VoronoiType.Power)
+                    {
+                        // Power curve with falloff multiplier
+                        heightContribution = peakHeight
+                            - Mathf.Pow(normalizedDistance, voronoiDropoff) * voronoiFalloff;
+                    }
+                    else if (voronoiType == VoronoiType.SinPow)
+                    {
+                        // Sin + Power combination for meringue-like peaks
+                        heightContribution = peakHeight
+                            - Mathf.Pow(normalizedDistance * 3, voronoiFalloff)
+                            - (Mathf.Sin(normalizedDistance * 2 * Mathf.PI) / voronoiDropoff);
+                    }
+                    else // Linear (default)
+                    {
+                        // Simple linear falloff
+                        heightContribution = peakHeight - (normalizedDistance * voronoiFalloff);
+                    }
 
                     // Only raise terrain, never lower it (for this peak)
                     if (heightContribution > heightMap[x, z])
