@@ -371,10 +371,13 @@ public class CustomTerrain : MonoBehaviour
                     // Normalize distance to 0-1 range
                     float normalizedDistance = distance / maxDistance;
 
-                    // Calculate height contribution using linear falloff
-                    // Height decreases as distance increases
-                    // falloff > 1 = steeper slope, falloff < 1 = gentler slope
-                    float heightContribution = peakHeight - (normalizedDistance * voronoiFalloff);
+                    // Calculate height contribution using combined linear and curved falloff
+                    // Formula: Height = Peak - (Distance * Falloff) - Power(Distance, DropOff)
+                    // Falloff: controls linear steepness (higher = steeper)
+                    // DropOff: controls curvature (>1 = bulging outward, <1 = concave/scooping)
+                    float heightContribution = peakHeight
+                        - (normalizedDistance * voronoiFalloff)
+                        - Mathf.Pow(normalizedDistance, voronoiDropoff);
 
                     // Only raise terrain, never lower it (for this peak)
                     if (heightContribution > heightMap[x, z])

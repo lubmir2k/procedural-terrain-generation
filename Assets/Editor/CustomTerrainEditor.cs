@@ -49,6 +49,7 @@ public class CustomTerrainEditor : Editor
     // Voronoi Tessellation
     // ---------------------------
     SerializedProperty voronoiFalloff;
+    SerializedProperty voronoiDropoff;
     SerializedProperty voronoiMinHeight;
     SerializedProperty voronoiMaxHeight;
     SerializedProperty voronoiPeaks;
@@ -72,6 +73,7 @@ public class CustomTerrainEditor : Editor
         perlinParameterTable = new GUITableState("perlinParameterTable");
         perlinParameters = serializedObject.FindProperty("perlinParameters");
         voronoiFalloff = serializedObject.FindProperty("voronoiFalloff");
+        voronoiDropoff = serializedObject.FindProperty("voronoiDropoff");
         voronoiMinHeight = serializedObject.FindProperty("voronoiMinHeight");
         voronoiMaxHeight = serializedObject.FindProperty("voronoiMaxHeight");
         voronoiPeaks = serializedObject.FindProperty("voronoiPeaks");
@@ -221,6 +223,7 @@ public class CustomTerrainEditor : Editor
 
             EditorGUILayout.IntSlider(voronoiPeaks, 1, 12, new GUIContent("Peak Count"));
             EditorGUILayout.Slider(voronoiFalloff, 0f, 10f, new GUIContent("Falloff"));
+            EditorGUILayout.Slider(voronoiDropoff, 0f, 10f, new GUIContent("Drop Off"));
             EditorGUILayout.Slider(voronoiMinHeight, 0f, 1f, new GUIContent("Min Height"));
             EditorGUILayout.Slider(voronoiMaxHeight, 0f, 1f, new GUIContent("Max Height"));
 
