@@ -16,6 +16,7 @@ public class CustomTerrainEditor : Editor
     // ---------------------------
     SerializedProperty heightMapImage;
     SerializedProperty heightMapScale;
+    SerializedProperty additiveLoadHeights;
     bool showLoadHeights = false;
 
     void OnEnable()
@@ -24,6 +25,7 @@ public class CustomTerrainEditor : Editor
         randomHeightRange = serializedObject.FindProperty("randomHeightRange");
         heightMapImage = serializedObject.FindProperty("heightMapImage");
         heightMapScale = serializedObject.FindProperty("heightMapScale");
+        additiveLoadHeights = serializedObject.FindProperty("additiveLoadHeights");
     }
 
     public override void OnInspectorGUI()
@@ -68,10 +70,20 @@ public class CustomTerrainEditor : Editor
 
             EditorGUILayout.PropertyField(heightMapImage);
             EditorGUILayout.PropertyField(heightMapScale);
+            EditorGUILayout.PropertyField(additiveLoadHeights, 
+                new GUIContent("Additive", "Add texture heights to existing terrain heights"));
 
             if (GUILayout.Button("Load Texture"))
             {
-                terrain.LoadTexture();
+                // Call appropriate method based on additive toggle
+                if (terrain.additiveLoadHeights)
+                {
+                    terrain.LoadTextureAdditive();
+                }
+                else
+                {
+                    terrain.LoadTexture();
+                }
             }
         }
 

@@ -24,6 +24,8 @@ public class CustomTerrain : MonoBehaviour
     public Texture2D heightMapImage;
     public Vector3 heightMapScale = new Vector3(1, 1, 1);
 
+    public bool additiveLoadHeights = false;
+
     void OnEnable()
     {
         Debug.Log("Initializing Terrain Data");
@@ -85,6 +87,31 @@ public class CustomTerrain : MonoBehaviour
         }
 
         // Apply the heightmap to the terrain
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+
+    public void LoadTextureAdditive()
+    {
+        // Get EXISTING heights from terrain instead of creating zeros
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        // Loop through every point in the heightmap
+        for (int x = 0; x < terrainData.heightmapResolution; x++)
+        {
+            for (int z = 0; z < terrainData.heightmapResolution; z++)
+            {
+                // ADD texture height to existing height with +=
+                heightMap[x, z] += heightMapImage.GetPixel(
+                    (int)(x * heightMapScale.x),
+                    (int)(z * heightMapScale.z)).grayscale
+                    * heightMapScale.y;
+            }
+        }
+
+        // Apply the modified heightmap back to the terrain
         terrainData.SetHeights(0, 0, heightMap);
     }
 
