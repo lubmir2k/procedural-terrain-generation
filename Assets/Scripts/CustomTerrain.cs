@@ -400,7 +400,7 @@ public class CustomTerrain : MonoBehaviour
                         case VoronoiType.SinPow:
                             // Sin + Power combination for meringue-like peaks
                             // Guard against division by zero
-                            float sinComponent = (voronoiDropoff != 0)
+                            float sinComponent = !Mathf.Approximately(voronoiDropoff, 0f)
                                 ? (Mathf.Sin(normalizedDistance * 2 * Mathf.PI) / voronoiDropoff)
                                 : 0f;
                             heightContribution = peakHeight

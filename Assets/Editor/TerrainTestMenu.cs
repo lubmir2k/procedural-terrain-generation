@@ -30,7 +30,7 @@ public static class TerrainTestMenu
         if (TryGetTerrain(out var terrain))
         {
             terrain.Voronoi();
-            Debug.Log($"Voronoi generated with Peaks={terrain.voronoiPeaks}, Falloff={terrain.voronoiFalloff}, DropOff={terrain.voronoiDropoff}");
+            Debug.Log($"Voronoi generated with Type={terrain.voronoiType}, Peaks={terrain.voronoiPeaks}, Falloff={terrain.voronoiFalloff}, DropOff={terrain.voronoiDropoff}, MinHeight={terrain.voronoiMinHeight}, MaxHeight={terrain.voronoiMaxHeight}");
         }
     }
 }
