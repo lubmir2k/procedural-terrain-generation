@@ -347,7 +347,7 @@ public class CustomTerrain : MonoBehaviour
         int resolution = terrainData.heightmapResolution;
 
         // Calculate max distance for normalization once (diagonal of terrain)
-        float maxDistance = Mathf.Sqrt(resolution * resolution + resolution * resolution);
+        float maxDistance = resolution * Mathf.Sqrt(2f);
 
         // Generate random peak positions and heights
         for (int p = 0; p < voronoiPeaks; p++)
