@@ -74,7 +74,7 @@ public class CustomTerrain : MonoBehaviour
     public float voronoiMinHeight = 0.1f;
     public float voronoiMaxHeight = 0.5f;
     public int voronoiPeaks = 5;
-    public enum VoronoiType { Linear = 0, Power = 1, Combined = 2, SinPow = 3 }
+    public enum VoronoiType { Linear = 0, Power = 1, Combined = 2, SinPow = 3, Perlin = 4 }
     public VoronoiType voronoiType = VoronoiType.Linear;
 
     void OnEnable()
@@ -395,6 +395,16 @@ public class CustomTerrain : MonoBehaviour
                         heightContribution = peakHeight
                             - Mathf.Pow(normalizedDistance * 3, voronoiFalloff)
                             - (Mathf.Sin(normalizedDistance * 2 * Mathf.PI) / voronoiDropoff);
+                    }
+                    else if (voronoiType == VoronoiType.Perlin)
+                    {
+                        // Linear falloff combined with Perlin noise for natural-looking slopes
+                        heightContribution = (peakHeight - (normalizedDistance * voronoiFalloff))
+                            + Utils.FBM(
+                                (x + perlinOffsetX) * perlinXScale,
+                                (z + perlinOffsetY) * perlinYScale,
+                                perlinOctaves,
+                                perlinPersistence) * perlinHeightScale;
                     }
                     else // Linear (default)
                     {
