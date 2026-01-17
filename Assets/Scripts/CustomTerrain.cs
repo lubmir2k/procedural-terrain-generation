@@ -35,6 +35,9 @@ public class CustomTerrain : MonoBehaviour
     public float perlinYScale = 0.01f;
     public int perlinOffsetX = 0;
     public int perlinOffsetY = 0;
+    public int perlinOctaves = 3;
+    public float perlinPersistence = 0.5f;
+    public float perlinHeightScale = 0.09f;
 
     void OnEnable()
     {
@@ -198,11 +201,13 @@ public class CustomTerrain : MonoBehaviour
         {
             for (int y = 0; y < terrainData.heightmapResolution; y++)
             {
-                // Generate Perlin noise value based on position and scale
-                // Offset allows "seeding" - moving along the infinite noise curve
-                heightMap[x, y] = Mathf.PerlinNoise(
+                // Use Fractal Brownian Motion for more natural terrain
+                // Offset is added BEFORE scaling to avoid cubic artifacts
+                heightMap[x, y] = Utils.fBM(
                     (x + perlinOffsetX) * perlinXScale,
-                    (y + perlinOffsetY) * perlinYScale);
+                    (y + perlinOffsetY) * perlinYScale,
+                    perlinOctaves,
+                    perlinPersistence) * perlinHeightScale;
             }
         }
 
