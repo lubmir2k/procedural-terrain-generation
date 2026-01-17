@@ -237,13 +237,13 @@ public class CustomTerrain : MonoBehaviour
         // Loop through every point in the heightmap
         for (int x = 0; x < terrainData.heightmapResolution; x++)
         {
-            for (int y = 0; y < terrainData.heightmapResolution; y++)
+            for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
                 // Use Fractal Brownian Motion for more natural terrain
                 // Offset is added BEFORE scaling to avoid cubic artifacts
-                heightMap[x, y] += Utils.fBM(
+                heightMap[x, z] += Utils.fBM(
                     (x + perlinOffsetX) * perlinXScale,
-                    (y + perlinOffsetY) * perlinYScale,
+                    (z + perlinOffsetY) * perlinYScale,
                     perlinOctaves,
                     perlinPersistence) * perlinHeightScale;
             }
@@ -266,14 +266,14 @@ public class CustomTerrain : MonoBehaviour
         // Loop through every point in the heightmap
         for (int x = 0; x < terrainData.heightmapResolution; x++)
         {
-            for (int y = 0; y < terrainData.heightmapResolution; y++)
+            for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
                 // Apply each Perlin parameter set
                 foreach (PerlinParameters p in perlinParameters)
                 {
-                    heightMap[x, y] += Utils.fBM(
+                    heightMap[x, z] += Utils.fBM(
                         (x + p.mPerlinOffsetX) * p.mPerlinXScale,
-                        (y + p.mPerlinOffsetY) * p.mPerlinYScale,
+                        (z + p.mPerlinOffsetY) * p.mPerlinYScale,
                         p.mPerlinOctaves,
                         p.mPerlinPersistence) * p.mPerlinHeightScale;
                 }
@@ -309,9 +309,9 @@ public class CustomTerrain : MonoBehaviour
         // then inverts to create sharp ridges
         for (int x = 0; x < terrainData.heightmapResolution; x++)
         {
-            for (int y = 0; y < terrainData.heightmapResolution; y++)
+            for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
-                heightMap[x, y] = 1 - Mathf.Abs(heightMap[x, y] - 0.5f);
+                heightMap[x, z] = 1 - Mathf.Abs(heightMap[x, z] - 0.5f);
             }
         }
 
