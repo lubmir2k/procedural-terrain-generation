@@ -284,6 +284,41 @@ public class CustomTerrain : MonoBehaviour
         terrainData.SetHeights(0, 0, heightMap);
     }
 
+    public void RidgeNoise()
+    {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        // Reset terrain first to avoid accumulation
+        ResetTerrain();
+
+        // Generate base terrain using multiple Perlin noise
+        MultiplePerlinTerrain();
+
+        // Get the height map we just generated
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        // Apply ridge noise transformation
+        // Formula: newHeight = 1 - |oldHeight - 0.5|
+        // This shifts values down, takes absolute (flips negatives up),
+        // then inverts to create sharp ridges
+        for (int x = 0; x < terrainData.heightmapResolution; x++)
+        {
+            for (int y = 0; y < terrainData.heightmapResolution; y++)
+            {
+                heightMap[x, y] = 1 - Mathf.Abs(heightMap[x, y] - 0.5f);
+            }
+        }
+
+        // Apply the modified heightmap back to the terrain
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
     public void AddNewPerlin()
     {
         perlinParameters.Add(new PerlinParameters());
