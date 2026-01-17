@@ -88,3 +88,13 @@ Desktop.ini
 
 # Shader cache
 Library/ShaderCache/
+
+# Third-party Asset Store packages (download separately)
+[Aa]ssets/GUITable/
+[Aa]ssets/GUITable.meta
+
+# Local tool configurations
+.serena/
+
+# Mono crash logs
+mono_crash.*.json
