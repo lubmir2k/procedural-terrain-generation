@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using System.Linq;
 
 [ExecuteInEditMode]
@@ -30,7 +32,14 @@ public class CustomTerrain : MonoBehaviour
     {
         Debug.Log("Initializing Terrain Data");
         terrain = this.GetComponent<Terrain>();
-        terrainData = Terrain.activeTerrain.terrainData;
+        if (terrain != null)
+        {
+            terrainData = terrain.terrainData;
+        }
+        else
+        {
+            Debug.LogError("CustomTerrain requires a Terrain component on the same GameObject.", this);
+        }
     }
 
     public void RandomTerrain()
@@ -115,6 +124,7 @@ public class CustomTerrain : MonoBehaviour
         terrainData.SetHeights(0, 0, heightMap);
     }
 
+#if UNITY_EDITOR
     void Start()
     {
         // Load the tag manager from project settings
@@ -160,4 +170,5 @@ public class CustomTerrain : MonoBehaviour
             newTagProp.stringValue = newTag;
         }
     }
+#endif
 }
