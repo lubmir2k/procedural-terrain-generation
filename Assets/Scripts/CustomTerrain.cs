@@ -326,24 +326,14 @@ public class CustomTerrain : MonoBehaviour
 
     public void RemovePerlin()
     {
-        List<PerlinParameters> keptPerlinParameters = new List<PerlinParameters>();
-
-        // Keep only parameters not marked for removal
-        foreach (PerlinParameters p in perlinParameters)
-        {
-            if (!p.remove)
-            {
-                keptPerlinParameters.Add(p);
-            }
-        }
+        // Remove all parameters marked for removal
+        perlinParameters.RemoveAll(p => p.remove);
 
         // Ensure at least one parameter remains (GUITable requirement)
-        if (keptPerlinParameters.Count == 0)
+        if (perlinParameters.Count == 0)
         {
-            keptPerlinParameters.Add(perlinParameters[0]);
+            perlinParameters.Add(new PerlinParameters());
         }
-
-        perlinParameters = keptPerlinParameters;
     }
 
 #if UNITY_EDITOR
