@@ -16,6 +16,11 @@ public class CustomTerrain : MonoBehaviour
     public TerrainData terrainData;
 
     // ---------------------------
+    // Reset Terrain
+    // ---------------------------
+    public bool resetTerrain = true;
+
+    // ---------------------------
     // Random Heights
     // ---------------------------
     public Vector2 randomHeightRange = new Vector2(0, 0.1f);
@@ -39,6 +44,27 @@ public class CustomTerrain : MonoBehaviour
     public float perlinPersistence = 0.5f;
     public float perlinHeightScale = 0.09f;
 
+    // ---------------------------
+    // Multiple Perlin Noise
+    // ---------------------------
+    [System.Serializable]
+    public class PerlinParameters
+    {
+        public float mPerlinXScale = 0.01f;
+        public float mPerlinYScale = 0.01f;
+        public int mPerlinOctaves = 3;
+        public float mPerlinPersistence = 0.5f;
+        public float mPerlinHeightScale = 0.09f;
+        public int mPerlinOffsetX = 0;
+        public int mPerlinOffsetY = 0;
+        public bool remove = false;
+    }
+
+    public List<PerlinParameters> perlinParameters = new List<PerlinParameters>()
+    {
+        new PerlinParameters()
+    };
+
     void OnEnable()
     {
         terrain = GetComponent<Terrain>();
@@ -55,6 +81,26 @@ public class CustomTerrain : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Gets or creates a height map based on resetTerrain flag
+    /// </summary>
+    float[,] GetHeightMap()
+    {
+        if (!resetTerrain)
+        {
+            // Return existing heights to add onto
+            return terrainData.GetHeights(0, 0,
+                terrainData.heightmapResolution,
+                terrainData.heightmapResolution);
+        }
+        else
+        {
+            // Return a new zeroed height map
+            return new float[terrainData.heightmapResolution,
+                terrainData.heightmapResolution];
+        }
+    }
+
     public void RandomTerrain()
     {
         if (terrainData == null)
@@ -63,18 +109,15 @@ public class CustomTerrain : MonoBehaviour
             return;
         }
 
-        // Get the heightmap from the terrain
-        float[,] heightMap = terrainData.GetHeights(0, 0,
-            terrainData.heightmapResolution,
-            terrainData.heightmapResolution);
+        float[,] heightMap = GetHeightMap();
 
         // Loop through every point in the heightmap
         for (int x = 0; x < terrainData.heightmapResolution; x++)
         {
             for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
-                // Set a random height between our min and max values
-                heightMap[x, z] = UnityEngine.Random.Range(
+                // Add random height between our min and max values
+                heightMap[x, z] += UnityEngine.Random.Range(
                     randomHeightRange.x,
                     randomHeightRange.y);
             }
@@ -113,9 +156,7 @@ public class CustomTerrain : MonoBehaviour
             return;
         }
 
-        // Create a new heightmap array
-        float[,] heightMap = new float[terrainData.heightmapResolution,
-            terrainData.heightmapResolution];
+        float[,] heightMap = GetHeightMap();
 
         // Pre-fetch all pixels for performance (avoid GetPixel in loop)
         Color[] mapColors = heightMapImage.GetPixels();
@@ -131,7 +172,7 @@ public class CustomTerrain : MonoBehaviour
                 // Clamp to prevent IndexOutOfRangeException
                 int pixelX = Mathf.Clamp((int)(x * heightMapScale.x), 0, mapWidth - 1);
                 int pixelZ = Mathf.Clamp((int)(z * heightMapScale.z), 0, mapHeight - 1);
-                heightMap[x, z] = mapColors[pixelZ * mapWidth + pixelX].grayscale
+                heightMap[x, z] += mapColors[pixelZ * mapWidth + pixelX].grayscale
                     * heightMapScale.y;
             }
         }
@@ -191,10 +232,7 @@ public class CustomTerrain : MonoBehaviour
             return;
         }
 
-        // Get the heightmap from the terrain
-        float[,] heightMap = terrainData.GetHeights(0, 0,
-            terrainData.heightmapResolution,
-            terrainData.heightmapResolution);
+        float[,] heightMap = GetHeightMap();
 
         // Loop through every point in the heightmap
         for (int x = 0; x < terrainData.heightmapResolution; x++)
@@ -203,7 +241,7 @@ public class CustomTerrain : MonoBehaviour
             {
                 // Use Fractal Brownian Motion for more natural terrain
                 // Offset is added BEFORE scaling to avoid cubic artifacts
-                heightMap[x, y] = Utils.fBM(
+                heightMap[x, y] += Utils.fBM(
                     (x + perlinOffsetX) * perlinXScale,
                     (y + perlinOffsetY) * perlinYScale,
                     perlinOctaves,
@@ -213,6 +251,64 @@ public class CustomTerrain : MonoBehaviour
 
         // Apply the heightmap to the terrain
         terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    public void MultiplePerlinTerrain()
+    {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        float[,] heightMap = GetHeightMap();
+
+        // Loop through every point in the heightmap
+        for (int x = 0; x < terrainData.heightmapResolution; x++)
+        {
+            for (int y = 0; y < terrainData.heightmapResolution; y++)
+            {
+                // Apply each Perlin parameter set
+                foreach (PerlinParameters p in perlinParameters)
+                {
+                    heightMap[x, y] += Utils.fBM(
+                        (x + p.mPerlinOffsetX) * p.mPerlinXScale,
+                        (y + p.mPerlinOffsetY) * p.mPerlinYScale,
+                        p.mPerlinOctaves,
+                        p.mPerlinPersistence) * p.mPerlinHeightScale;
+                }
+            }
+        }
+
+        // Apply the heightmap to the terrain
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    public void AddNewPerlin()
+    {
+        perlinParameters.Add(new PerlinParameters());
+    }
+
+    public void RemovePerlin()
+    {
+        List<PerlinParameters> keptPerlinParameters = new List<PerlinParameters>();
+
+        // Keep only parameters not marked for removal
+        foreach (PerlinParameters p in perlinParameters)
+        {
+            if (!p.remove)
+            {
+                keptPerlinParameters.Add(p);
+            }
+        }
+
+        // Ensure at least one parameter remains (GUITable requirement)
+        if (keptPerlinParameters.Count == 0)
+        {
+            keptPerlinParameters.Add(perlinParameters[0]);
+        }
+
+        perlinParameters = keptPerlinParameters;
     }
 
 #if UNITY_EDITOR
