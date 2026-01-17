@@ -69,7 +69,7 @@ public class CustomTerrain : MonoBehaviour
     // ---------------------------
     // Voronoi Tessellation
     // ---------------------------
-    public float voronoiFalloff = 2.0f;
+    public float voronoiFalloff = 0.5f;
     public float voronoiDropoff = 2.0f;
     public float voronoiMinHeight = 0.1f;
     public float voronoiMaxHeight = 0.5f;
@@ -371,10 +371,10 @@ public class CustomTerrain : MonoBehaviour
                     // Normalize distance to 0-1 range
                     float normalizedDistance = distance / maxDistance;
 
-                    // Calculate height contribution using falloff curve
+                    // Calculate height contribution using linear falloff
                     // Height decreases as distance increases
-                    float heightContribution = peakHeight -
-                        (peakHeight * Mathf.Pow(normalizedDistance, voronoiDropoff) * voronoiFalloff);
+                    // falloff > 1 = steeper slope, falloff < 1 = gentler slope
+                    float heightContribution = peakHeight - (normalizedDistance * voronoiFalloff);
 
                     // Only raise terrain, never lower it (for this peak)
                     if (heightContribution > heightMap[x, z])
