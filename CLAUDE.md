@@ -81,6 +81,14 @@ Procedural generation follows 5 principles (see `Assets/Scenes/Main/Documentatio
 - `com.unity.splines` (2.8.2) - Path/curve tools
 - `com.coplaydev.unity-mcp` - MCP integration for Claude Code
 
+## Required Asset Store Packages
+
+These packages are excluded from version control and must be installed manually:
+
+- **Editor GUI Table** - Table UI for custom editors (used by CustomTerrainEditor)
+  - URL: https://assetstore.unity.com/packages/tools/gui/editor-gui-table-108795
+  - Install via Package Manager > My Assets
+
 ## Notes
 
 - PSO collections in `SharedAssets/GraphicsStateCollections/` are auto-generated per platform/quality combo. Use context menu "Update collection list" on GraphicsStateCollectionManager to refresh.
