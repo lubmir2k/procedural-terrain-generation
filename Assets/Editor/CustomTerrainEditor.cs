@@ -75,8 +75,8 @@ public class CustomTerrainEditor : Editor
 
             if (GUILayout.Button("Load Texture"))
             {
-                // Call appropriate method based on additive toggle
-                if (terrain.additiveLoadHeights)
+                // Use boolValue to get current GUI state (not stale object value)
+                if (additiveLoadHeights.boolValue)
                 {
                     terrain.LoadTextureAdditive();
                 }
