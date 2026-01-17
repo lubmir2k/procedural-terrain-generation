@@ -30,7 +30,6 @@ public class CustomTerrain : MonoBehaviour
 
     void OnEnable()
     {
-        Debug.Log("Initializing Terrain Data");
         terrain = this.GetComponent<Terrain>();
         if (terrain != null)
         {
@@ -81,16 +80,19 @@ public class CustomTerrain : MonoBehaviour
         float[,] heightMap = new float[terrainData.heightmapResolution,
             terrainData.heightmapResolution];
 
+        // Pre-fetch all pixels for performance (avoid GetPixel in loop)
+        Color[] mapColors = heightMapImage.GetPixels();
+        int mapWidth = heightMapImage.width;
+
         // Loop through every point in the heightmap
         for (int x = 0; x < terrainData.heightmapResolution; x++)
         {
             for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
-                // Get the pixel from the image at the scaled position
-                // and use its grayscale value as the height
-                heightMap[x, z] = heightMapImage.GetPixel(
-                    (int)(x * heightMapScale.x),
-                    (int)(z * heightMapScale.z)).grayscale
+                // Get the pixel from the pre-fetched array at the scaled position
+                int pixelX = (int)(x * heightMapScale.x);
+                int pixelZ = (int)(z * heightMapScale.z);
+                heightMap[x, z] = mapColors[pixelZ * mapWidth + pixelX].grayscale
                     * heightMapScale.y;
             }
         }
@@ -107,15 +109,20 @@ public class CustomTerrain : MonoBehaviour
             terrainData.heightmapResolution,
             terrainData.heightmapResolution);
 
+        // Pre-fetch all pixels for performance (avoid GetPixel in loop)
+        Color[] mapColors = heightMapImage.GetPixels();
+        int mapWidth = heightMapImage.width;
+
         // Loop through every point in the heightmap
         for (int x = 0; x < terrainData.heightmapResolution; x++)
         {
             for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
+                // Get the pixel from the pre-fetched array at the scaled position
+                int pixelX = (int)(x * heightMapScale.x);
+                int pixelZ = (int)(z * heightMapScale.z);
                 // ADD texture height to existing height with +=
-                heightMap[x, z] += heightMapImage.GetPixel(
-                    (int)(x * heightMapScale.x),
-                    (int)(z * heightMapScale.z)).grayscale
+                heightMap[x, z] += mapColors[pixelZ * mapWidth + pixelX].grayscale
                     * heightMapScale.y;
             }
         }
