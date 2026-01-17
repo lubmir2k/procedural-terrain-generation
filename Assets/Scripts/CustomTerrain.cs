@@ -28,6 +28,14 @@ public class CustomTerrain : MonoBehaviour
 
     public bool additiveLoadHeights = false;
 
+    // ---------------------------
+    // Perlin Noise
+    // ---------------------------
+    public float perlinXScale = 0.01f;
+    public float perlinYScale = 0.01f;
+    public int perlinOffsetX = 0;
+    public int perlinOffsetY = 0;
+
     void OnEnable()
     {
         terrain = GetComponent<Terrain>();
@@ -169,6 +177,36 @@ public class CustomTerrain : MonoBehaviour
         }
 
         // Apply the modified heightmap back to the terrain
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    public void Perlin()
+    {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        // Get the heightmap from the terrain
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        // Loop through every point in the heightmap
+        for (int x = 0; x < terrainData.heightmapResolution; x++)
+        {
+            for (int y = 0; y < terrainData.heightmapResolution; y++)
+            {
+                // Generate Perlin noise value based on position and scale
+                // Offset allows "seeding" - moving along the infinite noise curve
+                heightMap[x, y] = Mathf.PerlinNoise(
+                    (x + perlinOffsetX) * perlinXScale,
+                    (y + perlinOffsetY) * perlinYScale);
+            }
+        }
+
+        // Apply the heightmap to the terrain
         terrainData.SetHeights(0, 0, heightMap);
     }
 

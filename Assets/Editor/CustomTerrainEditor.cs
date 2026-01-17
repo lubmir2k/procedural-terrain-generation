@@ -19,6 +19,15 @@ public class CustomTerrainEditor : Editor
     SerializedProperty additiveLoadHeights;
     bool showLoadHeights = false;
 
+    // ---------------------------
+    // Perlin Noise
+    // ---------------------------
+    SerializedProperty perlinXScale;
+    SerializedProperty perlinYScale;
+    SerializedProperty perlinOffsetX;
+    SerializedProperty perlinOffsetY;
+    bool showPerlin = false;
+
     void OnEnable()
     {
         // Link serialized properties to the actual properties on our CustomTerrain
@@ -26,6 +35,10 @@ public class CustomTerrainEditor : Editor
         heightMapImage = serializedObject.FindProperty("heightMapImage");
         heightMapScale = serializedObject.FindProperty("heightMapScale");
         additiveLoadHeights = serializedObject.FindProperty("additiveLoadHeights");
+        perlinXScale = serializedObject.FindProperty("perlinXScale");
+        perlinYScale = serializedObject.FindProperty("perlinYScale");
+        perlinOffsetX = serializedObject.FindProperty("perlinOffsetX");
+        perlinOffsetY = serializedObject.FindProperty("perlinOffsetY");
     }
 
     public override void OnInspectorGUI()
@@ -84,6 +97,30 @@ public class CustomTerrainEditor : Editor
                 {
                     terrain.LoadTexture();
                 }
+            }
+        }
+
+        // ---------------------------
+        // Perlin Noise Section
+        // ---------------------------
+        showPerlin = EditorGUILayout.Foldout(showPerlin, "Single Perlin Noise");
+        if (showPerlin)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            GUILayout.Label("Perlin Noise Parameters", EditorStyles.boldLabel);
+
+            // Sliders for scale values (small values 0-1 for smooth noise)
+            EditorGUILayout.Slider(perlinXScale, 0, 1, new GUIContent("X Scale"));
+            EditorGUILayout.Slider(perlinYScale, 0, 1, new GUIContent("Y Scale"));
+
+            // Int sliders for offset (seed) values
+            EditorGUILayout.IntSlider(perlinOffsetX, 0, 10000, new GUIContent("X Offset"));
+            EditorGUILayout.IntSlider(perlinOffsetY, 0, 10000, new GUIContent("Y Offset"));
+
+            if (GUILayout.Button("Generate Perlin"))
+            {
+                terrain.Perlin();
             }
         }
 
