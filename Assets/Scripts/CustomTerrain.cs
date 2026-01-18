@@ -596,9 +596,17 @@ public class CustomTerrain : MonoBehaviour
             return;
         }
 
-        float[,] heightMap = GetHeightMap();
+        // Always smooth existing terrain, don't use reset flag
+        float[,] heightMap = terrainData.GetHeights(0, 0, 
+            terrainData.heightmapResolution, 
+            terrainData.heightmapResolution);
         int width = terrainData.heightmapResolution;
         int height = terrainData.heightmapResolution;
+
+        float smoothProgress = 0;
+#if UNITY_EDITOR
+        EditorUtility.DisplayProgressBar("Smoothing Terrain", "Progress", smoothProgress);
+#endif
 
         for (int s = 0; s < smoothAmount; s++)
         {
@@ -622,9 +630,18 @@ public class CustomTerrain : MonoBehaviour
                     heightMap[x, y] = avgHeight / ((float)neighbours.Count + 1);
                 }
             }
+
+            // Update progress bar
+            smoothProgress++;
+#if UNITY_EDITOR
+            EditorUtility.DisplayProgressBar("Smoothing Terrain", "Progress", smoothProgress / smoothAmount);
+#endif
         }
 
         terrainData.SetHeights(0, 0, heightMap);
+#if UNITY_EDITOR
+        EditorUtility.ClearProgressBar();
+#endif
     }
 
     public void AddNewPerlin()
