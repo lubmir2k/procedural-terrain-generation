@@ -56,6 +56,21 @@ public class CustomTerrainEditor : Editor
     SerializedProperty voronoiType;
     bool showVoronoi = false;
 
+    // ---------------------------
+    // Midpoint Displacement
+    // ---------------------------
+    SerializedProperty MPDheightMin;
+    SerializedProperty MPDheightMax;
+    SerializedProperty MPDheightDampenerPower;
+    SerializedProperty MPDroughness;
+    bool showMPD = false;
+
+    // ---------------------------
+    // Smooth
+    // ---------------------------
+    SerializedProperty smoothAmount;
+    bool showSmooth = false;
+
     void OnEnable()
     {
         // Link serialized properties to the actual properties on our CustomTerrain
@@ -79,6 +94,11 @@ public class CustomTerrainEditor : Editor
         voronoiMaxHeight = serializedObject.FindProperty("voronoiMaxHeight");
         voronoiPeaks = serializedObject.FindProperty("voronoiPeaks");
         voronoiType = serializedObject.FindProperty("voronoiType");
+        MPDheightMin = serializedObject.FindProperty("MPDheightMin");
+        MPDheightMax = serializedObject.FindProperty("MPDheightMax");
+        MPDheightDampenerPower = serializedObject.FindProperty("MPDheightDampenerPower");
+        MPDroughness = serializedObject.FindProperty("MPDroughness");
+        smoothAmount = serializedObject.FindProperty("smoothAmount");
     }
 
     public override void OnInspectorGUI()
@@ -233,6 +253,45 @@ public class CustomTerrainEditor : Editor
             if (GUILayout.Button("Generate Voronoi"))
             {
                 terrain.Voronoi();
+            }
+        }
+
+        // ---------------------------
+        // Midpoint Displacement Section
+        // ---------------------------
+        showMPD = EditorGUILayout.Foldout(showMPD, "Midpoint Displacement");
+        if (showMPD)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            GUILayout.Label("Midpoint Displacement (Diamond-Square)", EditorStyles.boldLabel);
+
+            EditorGUILayout.PropertyField(MPDheightMin);
+            EditorGUILayout.PropertyField(MPDheightMax);
+            EditorGUILayout.PropertyField(MPDheightDampenerPower);
+            EditorGUILayout.PropertyField(MPDroughness);
+
+            if (GUILayout.Button("Generate MPD"))
+            {
+                terrain.MidpointDisplacement();
+            }
+        }
+
+        // ---------------------------
+        // Smooth Section
+        // ---------------------------
+        showSmooth = EditorGUILayout.Foldout(showSmooth, "Smooth");
+        if (showSmooth)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            GUILayout.Label("Smooth Terrain", EditorStyles.boldLabel);
+
+            EditorGUILayout.IntSlider(smoothAmount, 1, 10, new GUIContent("Smooth Amount"));
+
+            if (GUILayout.Button("Smooth"))
+            {
+                terrain.Smooth();
             }
         }
 

@@ -33,4 +33,24 @@ public static class TerrainTestMenu
             Debug.Log($"Voronoi generated with Type={terrain.voronoiType}, Peaks={terrain.voronoiPeaks}, Falloff={terrain.voronoiFalloff}, DropOff={terrain.voronoiDropoff}, MinHeight={terrain.voronoiMinHeight}, MaxHeight={terrain.voronoiMaxHeight}");
         }
     }
+
+    [MenuItem("Tools/Terrain Test/Generate MPD")]
+    public static void GenerateMPD()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.MidpointDisplacement();
+            Debug.Log($"Midpoint Displacement generated with HeightMin={terrain.MPDheightMin}, HeightMax={terrain.MPDheightMax}, DampenerPower={terrain.MPDheightDampenerPower}, Roughness={terrain.MPDroughness}");
+        }
+    }
+
+    [MenuItem("Tools/Terrain Test/Smooth")]
+    public static void SmoothTerrain()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.Smooth();
+            Debug.Log($"Terrain smoothed with Amount={terrain.smoothAmount}");
+        }
+    }
 }
