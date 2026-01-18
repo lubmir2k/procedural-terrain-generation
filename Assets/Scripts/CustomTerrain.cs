@@ -557,34 +557,6 @@ public class CustomTerrain : MonoBehaviour
     }
 
     /// <summary>
-    /// Generates a list of valid neighbor positions for a given point in a 2D grid.
-    /// Handles edge cases by clamping to valid indices and excluding duplicates.
-    /// </summary>
-    List<Vector2> GenerateNeighbours(Vector2 pos, int width, int height)
-    {
-        List<Vector2> neighbours = new List<Vector2>();
-        for (int y = -1; y < 2; y++)
-        {
-            for (int x = -1; x < 2; x++)
-            {
-                // Skip the center position (the point itself)
-                if (!(x == 0 && y == 0))
-                {
-                    // Clamp to valid indices
-                    Vector2 nPos = new Vector2(
-                        Mathf.Clamp(pos.x + x, 0, width - 1),
-                        Mathf.Clamp(pos.y + y, 0, height - 1));
-
-                    // Only add if not already in list (handles edge duplicates)
-                    if (!neighbours.Contains(nPos))
-                        neighbours.Add(nPos);
-                }
-            }
-        }
-        return neighbours;
-    }
-
-    /// <summary>
     /// Smooths the terrain by averaging each height value with its neighbors.
     /// Runs the smoothing pass multiple times based on smoothAmount.
     /// </summary>
