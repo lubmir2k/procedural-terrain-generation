@@ -56,6 +56,15 @@ public class CustomTerrainEditor : Editor
     SerializedProperty voronoiType;
     bool showVoronoi = false;
 
+    // ---------------------------
+    // Midpoint Displacement
+    // ---------------------------
+    SerializedProperty MPDheightMin;
+    SerializedProperty MPDheightMax;
+    SerializedProperty MPDheightDampenerPower;
+    SerializedProperty MPDroughness;
+    bool showMPD = false;
+
     void OnEnable()
     {
         // Link serialized properties to the actual properties on our CustomTerrain
@@ -79,6 +88,10 @@ public class CustomTerrainEditor : Editor
         voronoiMaxHeight = serializedObject.FindProperty("voronoiMaxHeight");
         voronoiPeaks = serializedObject.FindProperty("voronoiPeaks");
         voronoiType = serializedObject.FindProperty("voronoiType");
+        MPDheightMin = serializedObject.FindProperty("MPDheightMin");
+        MPDheightMax = serializedObject.FindProperty("MPDheightMax");
+        MPDheightDampenerPower = serializedObject.FindProperty("MPDheightDampenerPower");
+        MPDroughness = serializedObject.FindProperty("MPDroughness");
     }
 
     public override void OnInspectorGUI()
@@ -233,6 +246,27 @@ public class CustomTerrainEditor : Editor
             if (GUILayout.Button("Generate Voronoi"))
             {
                 terrain.Voronoi();
+            }
+        }
+
+        // ---------------------------
+        // Midpoint Displacement Section
+        // ---------------------------
+        showMPD = EditorGUILayout.Foldout(showMPD, "Midpoint Displacement");
+        if (showMPD)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            GUILayout.Label("Midpoint Displacement (Diamond-Square)", EditorStyles.boldLabel);
+
+            EditorGUILayout.PropertyField(MPDheightMin);
+            EditorGUILayout.PropertyField(MPDheightMax);
+            EditorGUILayout.PropertyField(MPDheightDampenerPower);
+            EditorGUILayout.PropertyField(MPDroughness);
+
+            if (GUILayout.Button("Generate MPD"))
+            {
+                terrain.MidpointDisplacement();
             }
         }
 
