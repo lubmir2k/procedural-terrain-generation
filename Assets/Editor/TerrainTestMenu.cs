@@ -43,4 +43,14 @@ public static class TerrainTestMenu
             Debug.Log($"Midpoint Displacement generated with HeightMin={terrain.MPDheightMin}, HeightMax={terrain.MPDheightMax}, DampenerPower={terrain.MPDheightDampenerPower}, Roughness={terrain.MPDroughness}");
         }
     }
+
+    [MenuItem("Tools/Terrain Test/Smooth")]
+    public static void SmoothTerrain()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.Smooth();
+            Debug.Log($"Terrain smoothed with Amount={terrain.smoothAmount}");
+        }
+    }
 }

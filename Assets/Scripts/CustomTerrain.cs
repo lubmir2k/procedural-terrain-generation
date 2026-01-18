@@ -85,6 +85,11 @@ public class CustomTerrain : MonoBehaviour
     public float MPDheightDampenerPower = 2.0f;
     public float MPDroughness = 2.0f;
 
+    // ---------------------------
+    // Smooth
+    // ---------------------------
+    public int smoothAmount = 1;
+
     void OnEnable()
     {
         terrain = GetComponent<Terrain>();
@@ -546,6 +551,77 @@ public class CustomTerrain : MonoBehaviour
             squareSize = (int)(squareSize / 2.0f);
             heightMin *= heightDampener;
             heightMax *= heightDampener;
+        }
+
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    /// <summary>
+    /// Generates a list of valid neighbor positions for a given point in a 2D grid.
+    /// Handles edge cases by clamping to valid indices and excluding duplicates.
+    /// </summary>
+    List<Vector2> GenerateNeighbours(Vector2 pos, int width, int height)
+    {
+        List<Vector2> neighbours = new List<Vector2>();
+        for (int y = -1; y < 2; y++)
+        {
+            for (int x = -1; x < 2; x++)
+            {
+                // Skip the center position (the point itself)
+                if (!(x == 0 && y == 0))
+                {
+                    // Clamp to valid indices
+                    Vector2 nPos = new Vector2(
+                        Mathf.Clamp(pos.x + x, 0, width - 1),
+                        Mathf.Clamp(pos.y + y, 0, height - 1));
+
+                    // Only add if not already in list (handles edge duplicates)
+                    if (!neighbours.Contains(nPos))
+                        neighbours.Add(nPos);
+                }
+            }
+        }
+        return neighbours;
+    }
+
+    /// <summary>
+    /// Smooths the terrain by averaging each height value with its neighbors.
+    /// Runs the smoothing pass multiple times based on smoothAmount.
+    /// </summary>
+    public void Smooth()
+    {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        float[,] heightMap = GetHeightMap();
+        int width = terrainData.heightmapResolution;
+        int height = terrainData.heightmapResolution;
+
+        for (int s = 0; s < smoothAmount; s++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    // Start with the current height value
+                    float avgHeight = heightMap[x, y];
+
+                    // Get all valid neighbors
+                    List<Vector2> neighbours = GenerateNeighbours(new Vector2(x, y), width, height);
+
+                    // Add all neighbor heights
+                    foreach (Vector2 n in neighbours)
+                    {
+                        avgHeight += heightMap[(int)n.x, (int)n.y];
+                    }
+
+                    // Set the averaged height (neighbors count + 1 for center)
+                    heightMap[x, y] = avgHeight / ((float)neighbours.Count + 1);
+                }
+            }
         }
 
         terrainData.SetHeights(0, 0, heightMap);

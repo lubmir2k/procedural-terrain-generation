@@ -65,6 +65,12 @@ public class CustomTerrainEditor : Editor
     SerializedProperty MPDroughness;
     bool showMPD = false;
 
+    // ---------------------------
+    // Smooth
+    // ---------------------------
+    SerializedProperty smoothAmount;
+    bool showSmooth = false;
+
     void OnEnable()
     {
         // Link serialized properties to the actual properties on our CustomTerrain
@@ -92,6 +98,7 @@ public class CustomTerrainEditor : Editor
         MPDheightMax = serializedObject.FindProperty("MPDheightMax");
         MPDheightDampenerPower = serializedObject.FindProperty("MPDheightDampenerPower");
         MPDroughness = serializedObject.FindProperty("MPDroughness");
+        smoothAmount = serializedObject.FindProperty("smoothAmount");
     }
 
     public override void OnInspectorGUI()
@@ -267,6 +274,24 @@ public class CustomTerrainEditor : Editor
             if (GUILayout.Button("Generate MPD"))
             {
                 terrain.MidpointDisplacement();
+            }
+        }
+
+        // ---------------------------
+        // Smooth Section
+        // ---------------------------
+        showSmooth = EditorGUILayout.Foldout(showSmooth, "Smooth");
+        if (showSmooth)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            GUILayout.Label("Smooth Terrain", EditorStyles.boldLabel);
+
+            EditorGUILayout.IntSlider(smoothAmount, 1, 10, new GUIContent("Smooth Amount"));
+
+            if (GUILayout.Button("Smooth"))
+            {
+                terrain.Smooth();
             }
         }
 
