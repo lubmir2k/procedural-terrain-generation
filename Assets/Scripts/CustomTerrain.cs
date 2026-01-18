@@ -596,49 +596,51 @@ public class CustomTerrain : MonoBehaviour
             return;
         }
 
-        // Always smooth existing terrain, don't use reset flag
-        float[,] heightMap = terrainData.GetHeights(0, 0, 
-            terrainData.heightmapResolution, 
-            terrainData.heightmapResolution);
         int width = terrainData.heightmapResolution;
         int height = terrainData.heightmapResolution;
 
-        float smoothProgress = 0;
-#if UNITY_EDITOR
-        EditorUtility.DisplayProgressBar("Smoothing Terrain", "Progress", smoothProgress);
-#endif
+        // Use double-buffer to avoid directional smoothing artifacts
+        float[,] readMap = terrainData.GetHeights(0, 0, width, height);
+        float[,] writeMap = new float[width, height];
 
         for (int s = 0; s < smoothAmount; s++)
         {
+#if UNITY_EDITOR
+            EditorUtility.DisplayProgressBar("Smoothing Terrain", "Progress", (float)s / smoothAmount);
+#endif
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    // Start with the current height value
-                    float avgHeight = heightMap[x, y];
+                    float avgHeight = 0f;
+                    int neighbourCount = 0;
 
-                    // Get all valid neighbors
-                    List<Vector2> neighbours = GenerateNeighbours(new Vector2(x, y), width, height);
-
-                    // Add all neighbor heights
-                    foreach (Vector2 n in neighbours)
+                    // Inline neighbor sampling for performance
+                    for (int ny = -1; ny <= 1; ny++)
                     {
-                        avgHeight += heightMap[(int)n.x, (int)n.y];
-                    }
+                        for (int nx = -1; nx <= 1; nx++)
+                        {
+                            int sampleX = x + nx;
+                            int sampleY = y + ny;
 
-                    // Set the averaged height (neighbors count + 1 for center)
-                    heightMap[x, y] = avgHeight / ((float)neighbours.Count + 1);
+                            if (sampleX >= 0 && sampleX < width && sampleY >= 0 && sampleY < height)
+                            {
+                                avgHeight += readMap[sampleX, sampleY];
+                                neighbourCount++;
+                            }
+                        }
+                    }
+                    writeMap[x, y] = avgHeight / neighbourCount;
                 }
             }
 
-            // Update progress bar
-            smoothProgress++;
-#if UNITY_EDITOR
-            EditorUtility.DisplayProgressBar("Smoothing Terrain", "Progress", smoothProgress / smoothAmount);
-#endif
+            // Swap buffers for next pass
+            var temp = readMap;
+            readMap = writeMap;
+            writeMap = temp;
         }
 
-        terrainData.SetHeights(0, 0, heightMap);
+        terrainData.SetHeights(0, 0, readMap);
 #if UNITY_EDITOR
         EditorUtility.ClearProgressBar();
 #endif
