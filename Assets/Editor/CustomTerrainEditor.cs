@@ -71,6 +71,18 @@ public class CustomTerrainEditor : Editor
     SerializedProperty smoothAmount;
     bool showSmooth = false;
 
+    // ---------------------------
+    // Splatmaps
+    // ---------------------------
+    GUITableState splatMapTable;
+    SerializedProperty splatHeights;
+    bool showSplatMaps = false;
+
+    // ---------------------------
+    // Scroll View
+    // ---------------------------
+    Vector2 scrollPos;
+
     void OnEnable()
     {
         // Link serialized properties to the actual properties on our CustomTerrain
@@ -99,6 +111,8 @@ public class CustomTerrainEditor : Editor
         MPDheightDampenerPower = serializedObject.FindProperty("MPDheightDampenerPower");
         MPDroughness = serializedObject.FindProperty("MPDroughness");
         smoothAmount = serializedObject.FindProperty("smoothAmount");
+        splatMapTable = new GUITableState("splatMapTable");
+        splatHeights = serializedObject.FindProperty("splatHeights");
     }
 
     public override void OnInspectorGUI()
@@ -108,6 +122,14 @@ public class CustomTerrainEditor : Editor
 
         // Get reference to the terrain component
         CustomTerrain terrain = (CustomTerrain)target;
+
+        // ---------------------------
+        // Scrollbar Setup
+        // ---------------------------
+        // Let GUILayout handle sizing automatically (Rect dimensions are only valid during Repaint)
+        EditorGUILayout.BeginVertical();
+        scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
+        EditorGUI.indentLevel++;
 
         // ---------------------------
         // Reset Terrain Toggle (at top for easy access)
@@ -296,6 +318,36 @@ public class CustomTerrainEditor : Editor
         }
 
         // ---------------------------
+        // Splatmaps Section
+        // ---------------------------
+        showSplatMaps = EditorGUILayout.Foldout(showSplatMaps, "Splat Maps");
+        if (showSplatMaps)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Splat Maps", EditorStyles.boldLabel);
+
+            splatMapTable = GUITableLayout.DrawTable(splatMapTable, splatHeights);
+
+            GUILayout.Space(20);
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("+"))
+            {
+                terrain.AddSplatHeight();
+            }
+            if (GUILayout.Button("-"))
+            {
+                terrain.RemoveSplatHeight();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (GUILayout.Button("Apply Splat Maps"))
+            {
+                terrain.SplatMaps();
+            }
+        }
+
+        // ---------------------------
         // Reset Section
         // ---------------------------
         EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
@@ -303,6 +355,12 @@ public class CustomTerrainEditor : Editor
         {
             terrain.ResetTerrain();
         }
+
+        // ---------------------------
+        // End Scrollbar
+        // ---------------------------
+        EditorGUILayout.EndScrollView();
+        EditorGUILayout.EndVertical();
 
         // Always call this at the end to apply any changes
         serializedObject.ApplyModifiedProperties();

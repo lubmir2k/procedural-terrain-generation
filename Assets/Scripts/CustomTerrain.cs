@@ -60,6 +60,28 @@ public class CustomTerrain : MonoBehaviour
         public bool remove = false;
     }
 
+
+    // ---------------------------
+    // Splatmaps
+    // ---------------------------
+    [System.Serializable]
+    public class SplatHeights
+    {
+        public Texture2D texture = null;
+        public Texture2D textureNormalMap = null;
+        public float minHeight = 0.1f;
+        public float maxHeight = 0.2f;
+        public float minSlope = 0f;
+        public float maxSlope = 90f;
+        public Vector2 tileOffset = new Vector2(0, 0);
+        public Vector2 tileSize = new Vector2(50, 50);
+        public float splatOffset = 0.1f;
+        public float splatNoiseXScale = 0.01f;
+        public float splatNoiseYScale = 0.01f;
+        public float splatNoiseScaler = 0.1f;
+        public bool remove = false;
+    }
+
     public List<PerlinParameters> perlinParameters = new List<PerlinParameters>()
     {
         new PerlinParameters()
@@ -89,6 +111,14 @@ public class CustomTerrain : MonoBehaviour
     // Smooth
     // ---------------------------
     public int smoothAmount = 1;
+
+    // ---------------------------
+    // Splatmaps
+    // ---------------------------
+    public List<SplatHeights> splatHeights = new List<SplatHeights>()
+    {
+        new SplatHeights()
+    };
 
     void OnEnable()
     {
@@ -632,6 +662,218 @@ public class CustomTerrain : MonoBehaviour
         if (perlinParameters.Count == 0)
         {
             perlinParameters.Add(new PerlinParameters());
+        }
+    }
+
+
+    // ---------------------------
+    // Splatmap Methods
+    // ---------------------------
+    public void SplatMaps()
+    {
+#if UNITY_EDITOR
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        if (splatHeights == null || splatHeights.Count == 0)
+        {
+            Debug.LogError("Splat Heights list cannot be empty.", this);
+            return;
+        }
+
+        // Create terrain layers from our splatHeights list
+        TerrainLayer[] newSplatPrototypes = new TerrainLayer[splatHeights.Count];
+        int spIndex = 0;
+
+        // Define path constant for terrain layers
+        const string TERRAIN_LAYER_PATH = "Assets/TerrainLayers";
+
+        // Create folder or clean up existing assets to prevent accumulation
+        if (!AssetDatabase.IsValidFolder(TERRAIN_LAYER_PATH))
+        {
+            AssetDatabase.CreateFolder("Assets", "TerrainLayers");
+        }
+        else
+        {
+            // Clean up old terrain layers to prevent orphaned assets
+            string[] oldLayerGUIDs = AssetDatabase.FindAssets("t:TerrainLayer", new[] { TERRAIN_LAYER_PATH });
+            foreach (string guid in oldLayerGUIDs)
+            {
+                AssetDatabase.DeleteAsset(AssetDatabase.GUIDToAssetPath(guid));
+            }
+        }
+
+        foreach (SplatHeights sh in splatHeights)
+        {
+            newSplatPrototypes[spIndex] = new TerrainLayer();
+            newSplatPrototypes[spIndex].diffuseTexture = sh.texture;
+            newSplatPrototypes[spIndex].normalMapTexture = sh.textureNormalMap;
+            newSplatPrototypes[spIndex].tileOffset = sh.tileOffset;
+            newSplatPrototypes[spIndex].tileSize = sh.tileSize;
+
+            // Create asset with unique path
+            string path = AssetDatabase.GenerateUniqueAssetPath(
+                TERRAIN_LAYER_PATH + "/TerrainLayer_" + spIndex + ".terrainlayer");
+            AssetDatabase.CreateAsset(newSplatPrototypes[spIndex], path);
+
+            spIndex++;
+        }
+
+        terrainData.terrainLayers = newSplatPrototypes;
+
+        // Get height data directly (don't use GetHeightMap which may reset)
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        // Create 3D array for splatmap data: [x, y, texture layer]
+        float[,,] splatmapData = new float[terrainData.alphamapWidth,
+                                           terrainData.alphamapHeight,
+                                           terrainData.alphamapLayers];
+
+        // Process each point in the alphamap
+        for (int y = 0; y < terrainData.alphamapHeight; y++)
+        {
+            for (int x = 0; x < terrainData.alphamapWidth; x++)
+            {
+                // Convert alphamap coordinates to heightmap coordinates once per point
+                // (they may have different resolutions)
+                int heightMapX = (int)(x * (float)(terrainData.heightmapResolution - 1) / 
+                                      (terrainData.alphamapWidth - 1));
+                int heightMapY = (int)(y * (float)(terrainData.heightmapResolution - 1) / 
+                                      (terrainData.alphamapHeight - 1));
+
+                // Clamp to valid range
+                heightMapX = Mathf.Clamp(heightMapX, 0, terrainData.heightmapResolution - 1);
+                heightMapY = Mathf.Clamp(heightMapY, 0, terrainData.heightmapResolution - 1);
+
+                float terrainHeight = heightMap[heightMapX, heightMapY];
+
+                // Get steepness (slope angle) once per point using normalized coordinates
+                float normX = x * 1.0f / (terrainData.alphamapWidth - 1);
+                float normY = y * 1.0f / (terrainData.alphamapHeight - 1);
+                float angle = terrainData.GetSteepness(normX, normY);
+
+                // Array to hold splat weights for this position
+                float[] splat = new float[terrainData.alphamapLayers];
+                bool emptySplat = true;
+
+                for (int i = 0; i < splatHeights.Count; i++)
+                {
+                    // Add noise for natural-looking edges
+                    float noise = Mathf.PerlinNoise(x * splatHeights[i].splatNoiseXScale,
+                                                    y * splatHeights[i].splatNoiseYScale)
+                                                    * splatHeights[i].splatNoiseScaler;
+
+                    float offset = splatHeights[i].splatOffset + noise;
+
+                    // Calculate height range with offset
+                    float thisHeightStart = splatHeights[i].minHeight - offset;
+                    float thisHeightStop = splatHeights[i].maxHeight + offset;
+
+                    // Check both height range AND slope range
+                    if ((terrainHeight >= thisHeightStart && terrainHeight <= thisHeightStop) &&
+                        (angle >= splatHeights[i].minSlope && angle <= splatHeights[i].maxSlope))
+                    {
+                        // Guard against division by zero when offset is very small
+                        if (Mathf.Abs(offset) > float.Epsilon)
+                        {
+                            // Check if we're in the lower fade zone (near minHeight)
+                            if (terrainHeight <= thisHeightStart + offset)
+                            {
+                                // Fade from 0 to 1 as we move from the lower edge inwards
+                                splat[i] = Mathf.InverseLerp(thisHeightStart, thisHeightStart + offset, terrainHeight);
+                            }
+                            // Check if we're in the upper fade zone (near maxHeight)
+                            else if (terrainHeight >= thisHeightStop - offset)
+                            {
+                                // Fade from 1 to 0 as we approach the upper edge
+                                splat[i] = Mathf.InverseLerp(thisHeightStop, thisHeightStop - offset, terrainHeight);
+                            }
+                            else
+                            {
+                                // Fully inside the range - full opacity
+                                splat[i] = 1;
+                            }
+                        }
+                        else
+                        {
+                            // Offset is effectively zero - use full opacity
+                            splat[i] = 1;
+                        }
+                        emptySplat = false;
+                    }
+                }
+
+                // Normalize so all values add up to 1
+                NormalizeVector(ref splat);
+
+                // Apply splat values to the splatmap data
+                if (emptySplat)
+                {
+                    // No texture matched - use first texture as fallback
+                    splatmapData[x, y, 0] = 1;
+                }
+                else
+                {
+                    for (int j = 0; j < splatHeights.Count; j++)
+                    {
+                        splatmapData[x, y, j] = splat[j];
+                    }
+                }
+            }
+        }
+
+        // Apply the splatmap to the terrain
+        terrainData.SetAlphamaps(0, 0, splatmapData);
+
+        // Keep selection on the terrain GameObject
+        Selection.activeObject = this.gameObject;
+#endif
+    }
+
+
+    /// <summary>
+    /// Normalizes a vector so all values add up to 1.
+    /// Used for splatmap weights where all texture alphas must sum to 1.
+    /// </summary>
+    void NormalizeVector(ref float[] v)
+    {
+        float total = 0;
+
+        // Sum all values
+        for (int i = 0; i < v.Length; i++)
+        {
+            total += v[i];
+        }
+
+        // If array is empty (all zeros), return early to avoid NaN from division by zero
+        if (Mathf.Approximately(total, 0f)) return;
+
+        // Divide each by total to normalize
+        for (int i = 0; i < v.Length; i++)
+        {
+            v[i] /= total;
+        }
+    }
+
+    public void AddSplatHeight()
+    {
+        splatHeights.Add(new SplatHeights());
+    }
+
+    public void RemoveSplatHeight()
+    {
+        // Remove all entries marked for removal (consistent with RemovePerlin pattern)
+        splatHeights.RemoveAll(s => s.remove);
+
+        // Ensure at least one entry remains (GUITable requirement)
+        if (splatHeights.Count == 0)
+        {
+            splatHeights.Add(new SplatHeights());
         }
     }
 
