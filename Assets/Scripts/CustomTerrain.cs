@@ -678,6 +678,12 @@ public class CustomTerrain : MonoBehaviour
             return;
         }
 
+        if (splatHeights == null || splatHeights.Count == 0)
+        {
+            Debug.LogError("Splat Heights list cannot be empty.", this);
+            return;
+        }
+
         // Create terrain layers from our splatHeights list
         TerrainLayer[] newSplatPrototypes = new TerrainLayer[splatHeights.Count];
         int spIndex = 0;
