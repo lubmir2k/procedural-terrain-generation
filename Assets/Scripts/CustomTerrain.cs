@@ -682,6 +682,12 @@ public class CustomTerrain : MonoBehaviour
         TerrainLayer[] newSplatPrototypes = new TerrainLayer[splatHeights.Count];
         int spIndex = 0;
 
+        // Create the terrain layer folder once before the loop
+        if (!AssetDatabase.IsValidFolder("Assets/TerrainLayers"))
+        {
+            AssetDatabase.CreateFolder("Assets", "TerrainLayers");
+        }
+
         foreach (SplatHeights sh in splatHeights)
         {
             newSplatPrototypes[spIndex] = new TerrainLayer();
@@ -690,11 +696,6 @@ public class CustomTerrain : MonoBehaviour
             newSplatPrototypes[spIndex].tileOffset = sh.tileOffset;
             newSplatPrototypes[spIndex].tileSize = sh.tileSize;
 
-            // Create the terrain layer asset in an organized folder
-            if (!AssetDatabase.IsValidFolder("Assets/TerrainLayers"))
-            {
-                AssetDatabase.CreateFolder("Assets", "TerrainLayers");
-            }
             // Use unique path to avoid conflicts when applying multiple times
             string path = AssetDatabase.GenerateUniqueAssetPath(
                 "Assets/TerrainLayers/TerrainLayer_" + spIndex + ".terrainlayer");
@@ -832,7 +833,7 @@ public class CustomTerrain : MonoBehaviour
         }
 
         // If array is empty (all zeros), return early to avoid NaN from division by zero
-        if (total == 0) return;
+        if (Mathf.Approximately(total, 0f)) return;
 
         // Divide each by total to normalize
         for (int i = 0; i < v.Length; i++)
