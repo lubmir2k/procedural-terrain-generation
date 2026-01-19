@@ -682,10 +682,22 @@ public class CustomTerrain : MonoBehaviour
         TerrainLayer[] newSplatPrototypes = new TerrainLayer[splatHeights.Count];
         int spIndex = 0;
 
-        // Create the terrain layer folder once before the loop
-        if (!AssetDatabase.IsValidFolder("Assets/TerrainLayers"))
+        // Define path constant for terrain layers
+        const string TERRAIN_LAYER_PATH = "Assets/TerrainLayers";
+
+        // Create folder or clean up existing assets to prevent accumulation
+        if (!AssetDatabase.IsValidFolder(TERRAIN_LAYER_PATH))
         {
             AssetDatabase.CreateFolder("Assets", "TerrainLayers");
+        }
+        else
+        {
+            // Clean up old terrain layers to prevent orphaned assets
+            string[] oldLayerGUIDs = AssetDatabase.FindAssets("t:TerrainLayer", new[] { TERRAIN_LAYER_PATH });
+            foreach (string guid in oldLayerGUIDs)
+            {
+                AssetDatabase.DeleteAsset(AssetDatabase.GUIDToAssetPath(guid));
+            }
         }
 
         foreach (SplatHeights sh in splatHeights)
@@ -696,9 +708,9 @@ public class CustomTerrain : MonoBehaviour
             newSplatPrototypes[spIndex].tileOffset = sh.tileOffset;
             newSplatPrototypes[spIndex].tileSize = sh.tileSize;
 
-            // Use unique path to avoid conflicts when applying multiple times
+            // Create asset with unique path
             string path = AssetDatabase.GenerateUniqueAssetPath(
-                "Assets/TerrainLayers/TerrainLayer_" + spIndex + ".terrainlayer");
+                TERRAIN_LAYER_PATH + "/TerrainLayer_" + spIndex + ".terrainlayer");
             AssetDatabase.CreateAsset(newSplatPrototypes[spIndex], path);
 
             spIndex++;
@@ -721,6 +733,24 @@ public class CustomTerrain : MonoBehaviour
         {
             for (int x = 0; x < terrainData.alphamapWidth; x++)
             {
+                // Convert alphamap coordinates to heightmap coordinates once per point
+                // (they may have different resolutions)
+                int heightMapX = (int)(x * (float)(terrainData.heightmapResolution - 1) / 
+                                      (terrainData.alphamapWidth - 1));
+                int heightMapY = (int)(y * (float)(terrainData.heightmapResolution - 1) / 
+                                      (terrainData.alphamapHeight - 1));
+
+                // Clamp to valid range
+                heightMapX = Mathf.Clamp(heightMapX, 0, terrainData.heightmapResolution - 1);
+                heightMapY = Mathf.Clamp(heightMapY, 0, terrainData.heightmapResolution - 1);
+
+                float terrainHeight = heightMap[heightMapX, heightMapY];
+
+                // Get steepness (slope angle) once per point using normalized coordinates
+                float normX = x * 1.0f / (terrainData.alphamapWidth - 1);
+                float normY = y * 1.0f / (terrainData.alphamapHeight - 1);
+                float angle = terrainData.GetSteepness(normX, normY);
+
                 // Array to hold splat weights for this position
                 float[] splat = new float[terrainData.alphamapLayers];
                 bool emptySplat = true;
@@ -738,24 +768,6 @@ public class CustomTerrain : MonoBehaviour
                     float thisHeightStart = splatHeights[i].minHeight - offset;
                     float thisHeightStop = splatHeights[i].maxHeight + offset;
 
-                    // Convert alphamap coordinates to heightmap coordinates
-                    // (they may have different resolutions)
-                    int heightMapX = (int)(x * (float)(terrainData.heightmapResolution - 1) / 
-                                          (terrainData.alphamapWidth - 1));
-                    int heightMapY = (int)(y * (float)(terrainData.heightmapResolution - 1) / 
-                                          (terrainData.alphamapHeight - 1));
-
-                    // Clamp to valid range
-                    heightMapX = Mathf.Clamp(heightMapX, 0, terrainData.heightmapResolution - 1);
-                    heightMapY = Mathf.Clamp(heightMapY, 0, terrainData.heightmapResolution - 1);
-
-                    float terrainHeight = heightMap[heightMapX, heightMapY];
-
-                    // Get steepness (slope angle) at this position using normalized coordinates
-                    float normX = x * 1.0f / (terrainData.alphamapWidth - 1);
-                    float normY = y * 1.0f / (terrainData.alphamapHeight - 1);
-                    float angle = terrainData.GetSteepness(normX, normY);
-
                     // Check both height range AND slope range
                     if ((terrainHeight >= thisHeightStart && terrainHeight <= thisHeightStop) &&
                         (angle >= splatHeights[i].minSlope && angle <= splatHeights[i].maxSlope))
@@ -766,14 +778,14 @@ public class CustomTerrain : MonoBehaviour
                             // Check if we're in the lower fade zone (near minHeight)
                             if (terrainHeight <= thisHeightStart + offset)
                             {
-                                // Fade from 0 to 1 as we move away from the lower edge
-                                splat[i] = 1 - Mathf.Abs((terrainHeight - (thisHeightStart + offset)) / offset);
+                                // Fade from 0 to 1 as we move from the lower edge inwards
+                                splat[i] = Mathf.InverseLerp(thisHeightStart, thisHeightStart + offset, terrainHeight);
                             }
                             // Check if we're in the upper fade zone (near maxHeight)
                             else if (terrainHeight >= thisHeightStop - offset)
                             {
                                 // Fade from 1 to 0 as we approach the upper edge
-                                splat[i] = 1 - Mathf.Abs((terrainHeight - (thisHeightStop - offset)) / offset);
+                                splat[i] = Mathf.InverseLerp(thisHeightStop, thisHeightStop - offset, terrainHeight);
                             }
                             else
                             {
