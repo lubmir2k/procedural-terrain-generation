@@ -690,18 +690,14 @@ public class CustomTerrain : MonoBehaviour
             newSplatPrototypes[spIndex].tileOffset = sh.tileOffset;
             newSplatPrototypes[spIndex].tileSize = sh.tileSize;
 
-            if (sh.texture != null)
+            // Create the terrain layer asset in an organized folder
+            if (!AssetDatabase.IsValidFolder("Assets/TerrainLayers"))
             {
-                newSplatPrototypes[spIndex].diffuseTexture.Apply(true);
+                AssetDatabase.CreateFolder("Assets", "TerrainLayers");
             }
-
-            if (sh.textureNormalMap != null)
-            {
-                newSplatPrototypes[spIndex].normalMapTexture.Apply(true);
-            }
-
-            // Create the terrain layer asset in the project
-            string path = "Assets/New Terrain Layer " + spIndex + ".terrainlayer";
+            // Use unique path to avoid conflicts when applying multiple times
+            string path = AssetDatabase.GenerateUniqueAssetPath(
+                "Assets/TerrainLayers/TerrainLayer_" + spIndex + ".terrainlayer");
             AssetDatabase.CreateAsset(newSplatPrototypes[spIndex], path);
 
             spIndex++;
@@ -763,21 +759,30 @@ public class CustomTerrain : MonoBehaviour
                     if ((terrainHeight >= thisHeightStart && terrainHeight <= thisHeightStop) &&
                         (angle >= splatHeights[i].minSlope && angle <= splatHeights[i].maxSlope))
                     {
-                        // Check if we're in the lower fade zone (near minHeight)
-                        if (terrainHeight <= thisHeightStart + offset)
+                        // Guard against division by zero when offset is very small
+                        if (Mathf.Abs(offset) > float.Epsilon)
                         {
-                            // Fade from 0 to 1 as we move away from the lower edge
-                            splat[i] = 1 - Mathf.Abs((terrainHeight - (thisHeightStart + offset)) / offset);
-                        }
-                        // Check if we're in the upper fade zone (near maxHeight)
-                        else if (terrainHeight >= thisHeightStop - offset)
-                        {
-                            // Fade from 1 to 0 as we approach the upper edge
-                            splat[i] = 1 - Mathf.Abs((terrainHeight - (thisHeightStop - offset)) / offset);
+                            // Check if we're in the lower fade zone (near minHeight)
+                            if (terrainHeight <= thisHeightStart + offset)
+                            {
+                                // Fade from 0 to 1 as we move away from the lower edge
+                                splat[i] = 1 - Mathf.Abs((terrainHeight - (thisHeightStart + offset)) / offset);
+                            }
+                            // Check if we're in the upper fade zone (near maxHeight)
+                            else if (terrainHeight >= thisHeightStop - offset)
+                            {
+                                // Fade from 1 to 0 as we approach the upper edge
+                                splat[i] = 1 - Mathf.Abs((terrainHeight - (thisHeightStop - offset)) / offset);
+                            }
+                            else
+                            {
+                                // Fully inside the range - full opacity
+                                splat[i] = 1;
+                            }
                         }
                         else
                         {
-                            // Fully inside the range - full opacity
+                            // Offset is effectively zero - use full opacity
                             splat[i] = 1;
                         }
                         emptySplat = false;
@@ -843,20 +848,14 @@ public class CustomTerrain : MonoBehaviour
 
     public void RemoveSplatHeight()
     {
-        List<SplatHeights> keptSplatHeights = new List<SplatHeights>();
-        for (int i = 0; i < splatHeights.Count; i++)
+        // Remove all entries marked for removal (consistent with RemovePerlin pattern)
+        splatHeights.RemoveAll(s => s.remove);
+
+        // Ensure at least one entry remains (GUITable requirement)
+        if (splatHeights.Count == 0)
         {
-            if (!splatHeights[i].remove)
-            {
-                keptSplatHeights.Add(splatHeights[i]);
-            }
+            splatHeights.Add(new SplatHeights());
         }
-        // Keep at least one entry (GUITable requirement)
-        if (keptSplatHeights.Count == 0)
-        {
-            keptSplatHeights.Add(splatHeights[0]);
-        }
-        splatHeights = keptSplatHeights;
     }
 
 #if UNITY_EDITOR

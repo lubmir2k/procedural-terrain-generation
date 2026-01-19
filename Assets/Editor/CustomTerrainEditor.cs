@@ -126,8 +126,9 @@ public class CustomTerrainEditor : Editor
         // ---------------------------
         // Scrollbar Setup
         // ---------------------------
-        Rect r = EditorGUILayout.BeginVertical();
-        scrollPos = EditorGUILayout.BeginScrollView(scrollPos, GUILayout.Width(r.width), GUILayout.Height(r.height));
+        // Let GUILayout handle sizing automatically (Rect dimensions are only valid during Repaint)
+        EditorGUILayout.BeginVertical();
+        scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
         EditorGUI.indentLevel++;
 
         // ---------------------------
