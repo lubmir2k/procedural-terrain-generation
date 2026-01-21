@@ -91,6 +91,13 @@ public class CustomTerrain : MonoBehaviour
         public float maxHeight = 0.2f;
         public float minSlope = 0f;
         public float maxSlope = 90f;
+        public Color color1 = Color.white;
+        public Color color2 = Color.white;
+        public Color lightColor = Color.white;
+        public float minRotation = 0f;
+        public float maxRotation = 360f;
+        public float minScale = 0.5f;
+        public float maxScale = 1.0f;
         public bool remove = false;
     }
 
@@ -920,6 +927,7 @@ public class CustomTerrain : MonoBehaviour
 
     public void PlantVegetation()
     {
+        // First, set up tree prototypes from our vegetation list
         TreePrototype[] newTreePrototypes = new TreePrototype[vegetation.Count];
         int tindex = 0;
 
@@ -931,6 +939,74 @@ public class CustomTerrain : MonoBehaviour
         }
 
         terrainData.treePrototypes = newTreePrototypes;
+
+        // List to hold all tree instances we create
+        List<TreeInstance> allVegetation = new List<TreeInstance>();
+
+        // Get alphamap dimensions for positioning
+        int taH = terrainData.alphamapHeight;
+        int taW = terrainData.alphamapWidth;
+
+        // Loop through terrain with tree spacing
+        for (int z = 0; z < taH; z += treeSpacing)
+        {
+            for (int x = 0; x < taW; x += treeSpacing)
+            {
+                // Loop through each tree prototype
+                for (int tp = 0; tp < terrainData.treePrototypes.Length; tp++)
+                {
+                    // Get height at this position (normalized 0-1)
+                    float thisHeight = terrainData.GetHeight(x, z) / terrainData.size.y;
+
+                    // Create a new tree instance
+                    TreeInstance instance = new TreeInstance();
+
+                    // Set position with random offset to avoid grid alignment
+                    instance.position = new Vector3(
+                        (x + UnityEngine.Random.Range(-5.0f, 5.0f)) / taW,
+                        thisHeight,
+                        (z + UnityEngine.Random.Range(-5.0f, 5.0f)) / taH
+                    );
+
+                    // Set rotation for variety
+                    instance.rotation = UnityEngine.Random.Range(
+                        vegetation[tp].minRotation,
+                        vegetation[tp].maxRotation
+                    );
+
+                    // Link to the tree prototype
+                    instance.prototypeIndex = tp;
+
+                    // Set color with lerp between color1 and color2
+                    instance.color = Color.Lerp(
+                        vegetation[tp].color1,
+                        vegetation[tp].color2,
+                        UnityEngine.Random.Range(0.0f, 1.0f)
+                    );
+
+                    // Set light map color
+                    instance.lightmapColor = vegetation[tp].lightColor;
+
+                    // Set scale for variety
+                    float s = UnityEngine.Random.Range(
+                        vegetation[tp].minScale,
+                        vegetation[tp].maxScale
+                    );
+                    instance.heightScale = s;
+                    instance.widthScale = s;
+
+                    // Add to our list
+                    allVegetation.Add(instance);
+
+                    // Check if we've hit max trees
+                    if (allVegetation.Count >= maxTrees) goto TREESDONE;
+                }
+            }
+        }
+
+    TREESDONE:
+        // Apply all tree instances to the terrain
+        terrainData.treeInstances = allVegetation.ToArray();
     }
 
 #if UNITY_EDITOR
