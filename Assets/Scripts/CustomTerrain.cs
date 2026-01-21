@@ -16,6 +16,14 @@ public class CustomTerrain : MonoBehaviour
     public TerrainData terrainData;
 
     // ---------------------------
+    // Tag/Layer Management
+    // ---------------------------
+    public enum TagType { Tag = 0, Layer = 1 }
+
+    [SerializeField]
+    int terrainLayer = -1;
+
+    // ---------------------------
     // Reset Terrain
     // ---------------------------
     public bool resetTerrain = true;
@@ -1021,39 +1029,61 @@ public class CustomTerrain : MonoBehaviour
         SerializedProperty tagsProp = tagManager.FindProperty("tags");
 
         // Add our custom tags
-        AddTag(tagsProp, "Terrain");
-        AddTag(tagsProp, "Cloud");
-        AddTag(tagsProp, "Shore");
+        AddTag(tagsProp, "Terrain", TagType.Tag);
+        AddTag(tagsProp, "Cloud", TagType.Tag);
+        AddTag(tagsProp, "Shore", TagType.Tag);
 
         // Apply the changes
         tagManager.ApplyModifiedProperties();
 
-        // Tag this game object as Terrain
+        // Find the layers property and add terrain layer
+        SerializedProperty layerProp = tagManager.FindProperty("layers");
+        terrainLayer = AddTag(layerProp, "Terrain", TagType.Layer);
+        tagManager.ApplyModifiedProperties();
+
+        // Set tag and layer for this game object
         this.gameObject.tag = "Terrain";
+        this.gameObject.layer = terrainLayer;
     }
 
-    void AddTag(SerializedProperty tagsProp, string newTag)
+    int AddTag(SerializedProperty tagsProp, string newTag, TagType tType)
     {
         bool found = false;
 
-        // Loop through existing tags to check if it already exists
+        // Loop through existing tags/layers to check if it already exists
         for (int i = 0; i < tagsProp.arraySize; i++)
         {
             SerializedProperty t = tagsProp.GetArrayElementAtIndex(i);
             if (t.stringValue.Equals(newTag))
             {
                 found = true;
-                break;
+                return i; // Return the index if found
             }
         }
 
-        // If not found, add the new tag
-        if (!found)
+        // Add new tag (tags can be inserted)
+        if (!found && tType == TagType.Tag)
         {
             tagsProp.InsertArrayElementAtIndex(0);
             SerializedProperty newTagProp = tagsProp.GetArrayElementAtIndex(0);
             newTagProp.stringValue = newTag;
         }
+        // Add new layer (layers have fixed slots, find empty one starting at index 8)
+        else if (!found && tType == TagType.Layer)
+        {
+            for (int j = 8; j < tagsProp.arraySize; j++)
+            {
+                SerializedProperty newLayer = tagsProp.GetArrayElementAtIndex(j);
+                // Add layer in next empty slot
+                if (newLayer.stringValue == "")
+                {
+                    newLayer.stringValue = newTag;
+                    return j;
+                }
+            }
+        }
+
+        return -1;
     }
 #endif
 }
