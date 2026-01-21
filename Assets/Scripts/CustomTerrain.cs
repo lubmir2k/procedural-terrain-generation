@@ -163,6 +163,9 @@ public class CustomTerrain : MonoBehaviour
     private const float RaycastHeightOffset = 10f;
     private const float RaycastMaxDistance = 100f;
 
+    // Unity layer constants (user-definable layers start at index 8)
+    private const int FirstUserLayerIndex = 8;
+
     void OnEnable()
     {
         terrain = GetComponent<Terrain>();
@@ -980,8 +983,8 @@ public class CustomTerrain : MonoBehaviour
                     }
 
                     // Convert alphamap coordinates to heightmap coordinates for GetHeight
-                    int hmX = x * hmW / taW;
-                    int hmZ = z * hmH / taH;
+                    int hmX = (int)(((float)x / taW) * hmW);
+                    int hmZ = (int)(((float)z / taH) * hmH);
 
                     // Get height at this position (normalized 0-1)
                     float thisHeight = terrainData.GetHeight(hmX, hmZ) / terrainData.size.y;
@@ -1096,40 +1099,45 @@ public class CustomTerrain : MonoBehaviour
 
         // Set tag and layer for this game object
         this.gameObject.tag = "Terrain";
-        this.gameObject.layer = terrainLayer;
+        if (terrainLayer != -1)
+        {
+            this.gameObject.layer = terrainLayer;
+        }
+        else
+        {
+            Debug.LogWarning("Could not assign 'Terrain' layer. Make sure there is an empty user layer in Project Settings > Tags and Layers.", this);
+        }
     }
 
     int AddTag(SerializedProperty tagsProp, string newTag, TagType tType)
     {
-        bool found = false;
-
         // Loop through existing tags/layers to check if it already exists
         for (int i = 0; i < tagsProp.arraySize; i++)
         {
             SerializedProperty t = tagsProp.GetArrayElementAtIndex(i);
             if (t.stringValue.Equals(newTag))
             {
-                found = true;
                 return i; // Return the index if found
             }
         }
 
-        // Add new tag (tags can be inserted)
-        if (!found && tType == TagType.Tag)
+        // Add new tag (tags can be inserted at index 0)
+        if (tType == TagType.Tag)
         {
             tagsProp.InsertArrayElementAtIndex(0);
             SerializedProperty newTagProp = tagsProp.GetArrayElementAtIndex(0);
             newTagProp.stringValue = newTag;
             return 0; // Return index where tag was inserted
         }
-        // Add new layer (layers have fixed slots, find empty one starting at index 8)
-        else if (!found && tType == TagType.Layer)
+
+        // Add new layer (layers have fixed slots, find empty one)
+        if (tType == TagType.Layer)
         {
-            for (int j = 8; j < tagsProp.arraySize; j++)
+            for (int j = FirstUserLayerIndex; j < tagsProp.arraySize; j++)
             {
                 SerializedProperty newLayer = tagsProp.GetArrayElementAtIndex(j);
                 // Add layer in next empty slot
-                if (newLayer.stringValue == "")
+                if (string.IsNullOrEmpty(newLayer.stringValue))
                 {
                     newLayer.stringValue = newTag;
                     return j;
@@ -1137,7 +1145,7 @@ public class CustomTerrain : MonoBehaviour
             }
         }
 
-        return -1;
+        return -1; // No empty layer slot found
     }
 #endif
 }
