@@ -973,6 +973,20 @@ public class CustomTerrain : MonoBehaviour
                     // Get height at this position (normalized 0-1)
                     float thisHeight = terrainData.GetHeight(x, z) / terrainData.size.y;
 
+                    // Get height constraints from vegetation table
+                    float thisHeightStart = vegetation[tp].minHeight;
+                    float thisHeightEnd = vegetation[tp].maxHeight;
+
+                    // Get steepness at this position (using normalized coordinates)
+                    float steepness = terrainData.GetSteepness(
+                        (float)x / taW,
+                        (float)z / taH
+                    );
+
+                    // Check height and slope constraints
+                    if (thisHeight >= thisHeightStart && thisHeight <= thisHeightEnd &&
+                        steepness >= vegetation[tp].minSlope && steepness <= vegetation[tp].maxSlope)
+                    {
                     // Create a new tree instance
                     TreeInstance instance = new TreeInstance();
 
@@ -1033,6 +1047,7 @@ public class CustomTerrain : MonoBehaviour
 
                     // Check if we've hit max trees
                     if (allVegetation.Count >= maxTrees) goto TREESDONE;
+                    } // End of height/slope constraint check
                 }
             }
         }
