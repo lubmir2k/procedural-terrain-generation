@@ -106,6 +106,7 @@ public class CustomTerrain : MonoBehaviour
         public float maxRotation = 360f;
         public float minScale = 0.5f;
         public float maxScale = 1.0f;
+        public float density = 0.5f;
         public bool remove = false;
     }
 
@@ -963,6 +964,12 @@ public class CustomTerrain : MonoBehaviour
                 // Loop through each tree prototype
                 for (int tp = 0; tp < terrainData.treePrototypes.Length; tp++)
                 {
+                    // Density check - skip placement randomly based on density value
+                    if (UnityEngine.Random.Range(0.0f, 1.0f) > vegetation[tp].density)
+                    {
+                        continue;
+                    }
+
                     // Get height at this position (normalized 0-1)
                     float thisHeight = terrainData.GetHeight(x, z) / terrainData.size.y;
 
@@ -975,6 +982,24 @@ public class CustomTerrain : MonoBehaviour
                         thisHeight,
                         (z + UnityEngine.Random.Range(-5.0f, 5.0f)) / taH
                     );
+
+                    // Raycast to get accurate height (fixes floating/buried trees)
+                    Vector3 treeWorldPos = new Vector3(
+                        instance.position.x * terrainData.size.x,
+                        instance.position.y * terrainData.size.y,
+                        instance.position.z * terrainData.size.z
+                    ) + this.transform.position;
+
+                    RaycastHit hit;
+                    int layerMask = 1 << terrainLayer;
+
+                    // Raycast down from above, or up from below (for buried trees)
+                    if (Physics.Raycast(treeWorldPos + new Vector3(0, 10, 0), -Vector3.up, out hit, 100, layerMask) ||
+                        Physics.Raycast(treeWorldPos - new Vector3(0, 10, 0), Vector3.up, out hit, 100, layerMask))
+                    {
+                        float treeHeight = (hit.point.y - this.transform.position.y) / terrainData.size.y;
+                        instance.position = new Vector3(instance.position.x, treeHeight, instance.position.z);
+                    }
 
                     // Set rotation for variety
                     instance.rotation = UnityEngine.Random.Range(
