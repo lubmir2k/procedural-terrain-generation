@@ -82,6 +82,18 @@ public class CustomTerrain : MonoBehaviour
         public bool remove = false;
     }
 
+    // Vegetation / Trees
+    [System.Serializable]
+    public class Vegetation
+    {
+        public GameObject mesh;
+        public float minHeight = 0.1f;
+        public float maxHeight = 0.2f;
+        public float minSlope = 0f;
+        public float maxSlope = 90f;
+        public bool remove = false;
+    }
+
     public List<PerlinParameters> perlinParameters = new List<PerlinParameters>()
     {
         new PerlinParameters()
@@ -118,6 +130,16 @@ public class CustomTerrain : MonoBehaviour
     public List<SplatHeights> splatHeights = new List<SplatHeights>()
     {
         new SplatHeights()
+    };
+
+    // ---------------------------
+    // Vegetation / Trees
+    // ---------------------------
+    public int maxTrees = 5000;
+    public int treeSpacing = 5;
+    public List<Vegetation> vegetation = new List<Vegetation>()
+    {
+        new Vegetation()
     };
 
     void OnEnable()
@@ -875,6 +897,40 @@ public class CustomTerrain : MonoBehaviour
         {
             splatHeights.Add(new SplatHeights());
         }
+    }
+
+
+    // ---------------------------
+    // Vegetation Methods
+    // ---------------------------
+    public void AddNewVegetation()
+    {
+        vegetation.Add(new Vegetation());
+    }
+
+    public void RemoveVegetation()
+    {
+        vegetation.RemoveAll(v => v.remove);
+
+        if (vegetation.Count == 0)
+        {
+            vegetation.Add(new Vegetation());
+        }
+    }
+
+    public void PlantVegetation()
+    {
+        TreePrototype[] newTreePrototypes = new TreePrototype[vegetation.Count];
+        int tindex = 0;
+
+        foreach (Vegetation t in vegetation)
+        {
+            newTreePrototypes[tindex] = new TreePrototype();
+            newTreePrototypes[tindex].prefab = t.mesh;
+            tindex++;
+        }
+
+        terrainData.treePrototypes = newTreePrototypes;
     }
 
 #if UNITY_EDITOR
