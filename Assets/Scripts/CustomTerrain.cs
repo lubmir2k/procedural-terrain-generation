@@ -16,6 +16,14 @@ public class CustomTerrain : MonoBehaviour
     public TerrainData terrainData;
 
     // ---------------------------
+    // Tag/Layer Management
+    // ---------------------------
+    public enum TagType { Tag = 0, Layer = 1 }
+
+    [SerializeField]
+    int terrainLayer = -1;
+
+    // ---------------------------
     // Reset Terrain
     // ---------------------------
     public bool resetTerrain = true;
@@ -82,6 +90,26 @@ public class CustomTerrain : MonoBehaviour
         public bool remove = false;
     }
 
+    // Vegetation / Trees
+    [System.Serializable]
+    public class Vegetation
+    {
+        public GameObject mesh;
+        public float minHeight = 0.1f;
+        public float maxHeight = 0.2f;
+        public float minSlope = 0f;
+        public float maxSlope = 90f;
+        public Color color1 = Color.white;
+        public Color color2 = Color.white;
+        public Color lightColor = Color.white;
+        public float minRotation = 0f;
+        public float maxRotation = 360f;
+        public float minScale = 0.5f;
+        public float maxScale = 1.0f;
+        public float density = 0.5f;
+        public bool remove = false;
+    }
+
     public List<PerlinParameters> perlinParameters = new List<PerlinParameters>()
     {
         new PerlinParameters()
@@ -119,6 +147,24 @@ public class CustomTerrain : MonoBehaviour
     {
         new SplatHeights()
     };
+
+    // ---------------------------
+    // Vegetation / Trees
+    // ---------------------------
+    public int maxTrees = 5000;
+    public int treeSpacing = 5;
+    public List<Vegetation> vegetation = new List<Vegetation>()
+    {
+        new Vegetation()
+    };
+
+    // Vegetation placement constants
+    private const float PositionRandomOffset = 5.0f;
+    private const float RaycastHeightOffset = 10f;
+    private const float RaycastMaxDistance = 100f;
+
+    // Unity layer constants (user-definable layers start at index 8)
+    private const int FirstUserLayerIndex = 8;
 
     void OnEnable()
     {
@@ -877,6 +923,156 @@ public class CustomTerrain : MonoBehaviour
         }
     }
 
+
+    // ---------------------------
+    // Vegetation Methods
+    // ---------------------------
+    public void AddNewVegetation()
+    {
+        vegetation.Add(new Vegetation());
+    }
+
+    public void RemoveVegetation()
+    {
+        vegetation.RemoveAll(v => v.remove);
+
+        if (vegetation.Count == 0)
+        {
+            vegetation.Add(new Vegetation());
+        }
+    }
+
+    public void PlantVegetation()
+    {
+        // First, set up tree prototypes from our vegetation list
+        TreePrototype[] newTreePrototypes = new TreePrototype[vegetation.Count];
+        int tindex = 0;
+
+        foreach (Vegetation t in vegetation)
+        {
+            newTreePrototypes[tindex] = new TreePrototype();
+            newTreePrototypes[tindex].prefab = t.mesh;
+            tindex++;
+        }
+
+        terrainData.treePrototypes = newTreePrototypes;
+
+        // List to hold all tree instances we create
+        List<TreeInstance> allVegetation = new List<TreeInstance>();
+
+        // Get alphamap dimensions for positioning
+        int taH = terrainData.alphamapHeight;
+        int taW = terrainData.alphamapWidth;
+
+        // Get heightmap dimensions for GetHeight coordinate conversion
+        int hmH = terrainData.heightmapResolution;
+        int hmW = terrainData.heightmapResolution;
+
+        // Loop through terrain with tree spacing
+        for (int z = 0; z < taH; z += treeSpacing)
+        {
+            for (int x = 0; x < taW; x += treeSpacing)
+            {
+                // Loop through each tree prototype
+                for (int tp = 0; tp < terrainData.treePrototypes.Length; tp++)
+                {
+                    // Density check - skip placement randomly based on density value
+                    if (UnityEngine.Random.Range(0.0f, 1.0f) > vegetation[tp].density)
+                    {
+                        continue;
+                    }
+
+                    // Convert alphamap coordinates to heightmap coordinates for GetHeight
+                    int hmX = (int)(((float)x / taW) * hmW);
+                    int hmZ = (int)(((float)z / taH) * hmH);
+
+                    // Get height at this position (normalized 0-1)
+                    float thisHeight = terrainData.GetHeight(hmX, hmZ) / terrainData.size.y;
+
+                    // Get height constraints from vegetation table
+                    float thisHeightStart = vegetation[tp].minHeight;
+                    float thisHeightEnd = vegetation[tp].maxHeight;
+
+                    // Get steepness at this position (using normalized coordinates)
+                    float steepness = terrainData.GetSteepness(
+                        (float)x / taW,
+                        (float)z / taH
+                    );
+
+                    // Check height and slope constraints
+                    if (thisHeight >= thisHeightStart && thisHeight <= thisHeightEnd &&
+                        steepness >= vegetation[tp].minSlope && steepness <= vegetation[tp].maxSlope)
+                    {
+                    // Create a new tree instance
+                    TreeInstance instance = new TreeInstance();
+
+                    // Set position with random offset to avoid grid alignment
+                    instance.position = new Vector3(
+                        (x + UnityEngine.Random.Range(-PositionRandomOffset, PositionRandomOffset)) / taW,
+                        thisHeight,
+                        (z + UnityEngine.Random.Range(-PositionRandomOffset, PositionRandomOffset)) / taH
+                    );
+
+                    // Raycast to get accurate height (fixes floating/buried trees)
+                    Vector3 treeWorldPos = new Vector3(
+                        instance.position.x * terrainData.size.x,
+                        instance.position.y * terrainData.size.y,
+                        instance.position.z * terrainData.size.z
+                    ) + this.transform.position;
+
+                    RaycastHit hit;
+                    int layerMask = 1 << terrainLayer;
+
+                    // Raycast down from above, or up from below (for buried trees)
+                    if (Physics.Raycast(treeWorldPos + new Vector3(0, RaycastHeightOffset, 0), -Vector3.up, out hit, RaycastMaxDistance, layerMask) ||
+                        Physics.Raycast(treeWorldPos - new Vector3(0, RaycastHeightOffset, 0), Vector3.up, out hit, RaycastMaxDistance, layerMask))
+                    {
+                        float treeHeight = (hit.point.y - this.transform.position.y) / terrainData.size.y;
+                        instance.position = new Vector3(instance.position.x, treeHeight, instance.position.z);
+                    }
+
+                    // Set rotation for variety
+                    instance.rotation = UnityEngine.Random.Range(
+                        vegetation[tp].minRotation,
+                        vegetation[tp].maxRotation
+                    );
+
+                    // Link to the tree prototype
+                    instance.prototypeIndex = tp;
+
+                    // Set color with lerp between color1 and color2
+                    instance.color = Color.Lerp(
+                        vegetation[tp].color1,
+                        vegetation[tp].color2,
+                        UnityEngine.Random.Range(0.0f, 1.0f)
+                    );
+
+                    // Set light map color
+                    instance.lightmapColor = vegetation[tp].lightColor;
+
+                    // Set scale for variety
+                    float s = UnityEngine.Random.Range(
+                        vegetation[tp].minScale,
+                        vegetation[tp].maxScale
+                    );
+                    instance.heightScale = s;
+                    instance.widthScale = s;
+
+                    // Add to our list
+                    allVegetation.Add(instance);
+
+                    // Check if we've hit max trees
+                    if (allVegetation.Count >= maxTrees) goto TREESDONE;
+                    } // End of height/slope constraint check
+                }
+            }
+        }
+
+    TREESDONE:
+        // Apply all tree instances to the terrain
+        terrainData.treeInstances = allVegetation.ToArray();
+    }
+
 #if UNITY_EDITOR
     void Start()
     {
@@ -889,39 +1085,67 @@ public class CustomTerrain : MonoBehaviour
         SerializedProperty tagsProp = tagManager.FindProperty("tags");
 
         // Add our custom tags
-        AddTag(tagsProp, "Terrain");
-        AddTag(tagsProp, "Cloud");
-        AddTag(tagsProp, "Shore");
+        AddTag(tagsProp, "Terrain", TagType.Tag);
+        AddTag(tagsProp, "Cloud", TagType.Tag);
+        AddTag(tagsProp, "Shore", TagType.Tag);
 
         // Apply the changes
         tagManager.ApplyModifiedProperties();
 
-        // Tag this game object as Terrain
+        // Find the layers property and add terrain layer
+        SerializedProperty layerProp = tagManager.FindProperty("layers");
+        terrainLayer = AddTag(layerProp, "Terrain", TagType.Layer);
+        tagManager.ApplyModifiedProperties();
+
+        // Set tag and layer for this game object
         this.gameObject.tag = "Terrain";
+        if (terrainLayer != -1)
+        {
+            this.gameObject.layer = terrainLayer;
+        }
+        else
+        {
+            Debug.LogWarning("Could not assign 'Terrain' layer. Make sure there is an empty user layer in Project Settings > Tags and Layers.", this);
+        }
     }
 
-    void AddTag(SerializedProperty tagsProp, string newTag)
+    int AddTag(SerializedProperty tagsProp, string newTag, TagType tType)
     {
-        bool found = false;
-
-        // Loop through existing tags to check if it already exists
+        // Loop through existing tags/layers to check if it already exists
         for (int i = 0; i < tagsProp.arraySize; i++)
         {
             SerializedProperty t = tagsProp.GetArrayElementAtIndex(i);
             if (t.stringValue.Equals(newTag))
             {
-                found = true;
-                break;
+                return i; // Return the index if found
             }
         }
 
-        // If not found, add the new tag
-        if (!found)
+        // Add new tag (tags can be inserted at index 0)
+        if (tType == TagType.Tag)
         {
             tagsProp.InsertArrayElementAtIndex(0);
             SerializedProperty newTagProp = tagsProp.GetArrayElementAtIndex(0);
             newTagProp.stringValue = newTag;
+            return 0; // Return index where tag was inserted
         }
+
+        // Add new layer (layers have fixed slots, find empty one)
+        if (tType == TagType.Layer)
+        {
+            for (int j = FirstUserLayerIndex; j < tagsProp.arraySize; j++)
+            {
+                SerializedProperty newLayer = tagsProp.GetArrayElementAtIndex(j);
+                // Add layer in next empty slot
+                if (string.IsNullOrEmpty(newLayer.stringValue))
+                {
+                    newLayer.stringValue = newTag;
+                    return j;
+                }
+            }
+        }
+
+        return -1; // No empty layer slot found
     }
 #endif
 }
