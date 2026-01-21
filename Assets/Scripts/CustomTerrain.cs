@@ -158,6 +158,11 @@ public class CustomTerrain : MonoBehaviour
         new Vegetation()
     };
 
+    // Vegetation placement constants
+    private const float PositionRandomOffset = 5.0f;
+    private const float RaycastHeightOffset = 10f;
+    private const float RaycastMaxDistance = 100f;
+
     void OnEnable()
     {
         terrain = GetComponent<Terrain>();
@@ -956,6 +961,10 @@ public class CustomTerrain : MonoBehaviour
         int taH = terrainData.alphamapHeight;
         int taW = terrainData.alphamapWidth;
 
+        // Get heightmap dimensions for GetHeight coordinate conversion
+        int hmH = terrainData.heightmapResolution;
+        int hmW = terrainData.heightmapResolution;
+
         // Loop through terrain with tree spacing
         for (int z = 0; z < taH; z += treeSpacing)
         {
@@ -970,8 +979,12 @@ public class CustomTerrain : MonoBehaviour
                         continue;
                     }
 
+                    // Convert alphamap coordinates to heightmap coordinates for GetHeight
+                    int hmX = x * hmW / taW;
+                    int hmZ = z * hmH / taH;
+
                     // Get height at this position (normalized 0-1)
-                    float thisHeight = terrainData.GetHeight(x, z) / terrainData.size.y;
+                    float thisHeight = terrainData.GetHeight(hmX, hmZ) / terrainData.size.y;
 
                     // Get height constraints from vegetation table
                     float thisHeightStart = vegetation[tp].minHeight;
@@ -992,9 +1005,9 @@ public class CustomTerrain : MonoBehaviour
 
                     // Set position with random offset to avoid grid alignment
                     instance.position = new Vector3(
-                        (x + UnityEngine.Random.Range(-5.0f, 5.0f)) / taW,
+                        (x + UnityEngine.Random.Range(-PositionRandomOffset, PositionRandomOffset)) / taW,
                         thisHeight,
-                        (z + UnityEngine.Random.Range(-5.0f, 5.0f)) / taH
+                        (z + UnityEngine.Random.Range(-PositionRandomOffset, PositionRandomOffset)) / taH
                     );
 
                     // Raycast to get accurate height (fixes floating/buried trees)
@@ -1008,8 +1021,8 @@ public class CustomTerrain : MonoBehaviour
                     int layerMask = 1 << terrainLayer;
 
                     // Raycast down from above, or up from below (for buried trees)
-                    if (Physics.Raycast(treeWorldPos + new Vector3(0, 10, 0), -Vector3.up, out hit, 100, layerMask) ||
-                        Physics.Raycast(treeWorldPos - new Vector3(0, 10, 0), Vector3.up, out hit, 100, layerMask))
+                    if (Physics.Raycast(treeWorldPos + new Vector3(0, RaycastHeightOffset, 0), -Vector3.up, out hit, RaycastMaxDistance, layerMask) ||
+                        Physics.Raycast(treeWorldPos - new Vector3(0, RaycastHeightOffset, 0), Vector3.up, out hit, RaycastMaxDistance, layerMask))
                     {
                         float treeHeight = (hit.point.y - this.transform.position.y) / terrainData.size.y;
                         instance.position = new Vector3(instance.position.x, treeHeight, instance.position.z);
@@ -1107,6 +1120,7 @@ public class CustomTerrain : MonoBehaviour
             tagsProp.InsertArrayElementAtIndex(0);
             SerializedProperty newTagProp = tagsProp.GetArrayElementAtIndex(0);
             newTagProp.stringValue = newTag;
+            return 0; // Return index where tag was inserted
         }
         // Add new layer (layers have fixed slots, find empty one starting at index 8)
         else if (!found && tType == TagType.Layer)
