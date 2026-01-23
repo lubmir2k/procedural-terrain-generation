@@ -242,6 +242,9 @@ public class CustomTerrain : MonoBehaviour
 
         // Apply the empty heightmap to flatten the terrain
         terrainData.SetHeights(0, 0, heightMap);
+
+        // Clear all trees
+        terrainData.treeInstances = new TreeInstance[0];
     }
 
     public void LoadTexture()
