@@ -415,7 +415,7 @@ public class CustomTerrainEditor : Editor
             EditorGUILayout.IntSlider(maxTrees, 0, 10000, new GUIContent("Maximum Trees"));
             EditorGUILayout.IntSlider(treeSpacing, 2, 20, new GUIContent("Tree Spacing"));
 
-            vegMapTable = GUITableLayout.DrawTable(vegMapTable, serializedObject.FindProperty("vegetation"));
+            vegMapTable = GUITableLayout.DrawTable(vegMapTable, vegetation);
 
             GUILayout.Space(20);
 
@@ -531,6 +531,7 @@ public class CustomTerrainEditor : Editor
         // ---------------------------
         // End Scrollbar
         // ---------------------------
+        EditorGUI.indentLevel--;
         EditorGUILayout.EndScrollView();
         EditorGUILayout.EndVertical();
 
