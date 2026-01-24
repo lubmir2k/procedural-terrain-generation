@@ -1140,6 +1140,12 @@ public class CustomTerrain : MonoBehaviour
             return;
         }
 
+        if (detailSpacing < 1)
+        {
+            Debug.LogError("Detail Spacing must be at least 1 to avoid an infinite loop.", this);
+            return;
+        }
+
         // Clear existing detail layers
         terrainData.detailPrototypes = null;
 
@@ -1163,6 +1169,10 @@ public class CustomTerrain : MonoBehaviour
                 newDetailPrototypes[i].prototypeTexture = details[i].prototypeTexture;
                 newDetailPrototypes[i].usePrototypeMesh = false;
                 newDetailPrototypes[i].renderMode = DetailRenderMode.GrassBillboard;
+            }
+            else
+            {
+                Debug.LogWarning($"Detail layer {i} has no mesh or texture assigned. It will not be visible.", this);
             }
 
             newDetailPrototypes[i].dryColor = details[i].dryColor;

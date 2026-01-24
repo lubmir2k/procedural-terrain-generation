@@ -47,6 +47,10 @@ public static class Utils
     /// <returns>Value remapped to target range</returns>
     public static float Map(float value, float originalMin, float originalMax, float targetMin, float targetMax)
     {
+        if (Mathf.Approximately(originalMax, originalMin))
+        {
+            return targetMin;
+        }
         return (value - originalMin) * (targetMax - targetMin) / (originalMax - originalMin) + targetMin;
     }
 }

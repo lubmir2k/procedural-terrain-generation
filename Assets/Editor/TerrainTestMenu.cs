@@ -60,7 +60,7 @@ public static class TerrainTestMenu
         if (TryGetTerrain(out var terrain))
         {
             terrain.AddDetails();
-            terrain.GetComponent<Terrain>().detailObjectDistance = terrain.maxDetails;
+            terrain.terrain.detailObjectDistance = terrain.maxDetails;
             Debug.Log($"Details applied with MaxDetails={terrain.maxDetails}, DetailSpacing={terrain.detailSpacing}, DetailCount={terrain.details.Count}");
         }
     }

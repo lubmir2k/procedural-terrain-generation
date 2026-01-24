@@ -437,7 +437,7 @@ public class CustomTerrainEditor : Editor
             {
                 terrain.AddDetails();
                 // Set detail object distance on the terrain component
-                terrain.GetComponent<Terrain>().detailObjectDistance = maxDetails.intValue;
+                terrain.terrain.detailObjectDistance = maxDetails.intValue;
             }
         }
 
