@@ -276,6 +276,13 @@ public class CustomTerrain : MonoBehaviour
 
         // Clear all trees
         terrainData.treeInstances = Array.Empty<TreeInstance>();
+
+        // Clear all detail layers (grass, rocks, etc.)
+        for (int i = 0; i < terrainData.detailPrototypes.Length; i++)
+        {
+            int[,] emptyDetailMap = new int[terrainData.detailWidth, terrainData.detailHeight];
+            terrainData.SetDetailLayer(0, 0, i, emptyDetailMap);
+        }
     }
 
     public void LoadTexture()
