@@ -186,7 +186,7 @@ public class CustomTerrain : MonoBehaviour
     {
         new Detail()
     };
-    public int maxDetails = 5000;
+    public int detailObjectDistance = 5000;
     public int detailSpacing = 5;
 
     // Vegetation placement constants
@@ -1143,7 +1143,7 @@ public class CustomTerrain : MonoBehaviour
         }
 
         // Clear existing detail layers
-        terrainData.detailPrototypes = null;
+        terrainData.detailPrototypes = Array.Empty<DetailPrototype>();
 
         // Create detail prototypes from our details list
         DetailPrototype[] newDetailPrototypes = new DetailPrototype[details.Count];
@@ -1190,6 +1190,9 @@ public class CustomTerrain : MonoBehaviour
         // Determine max value based on scatter mode
         float maxDetailMapValue = (terrainData.detailScatterMode == DetailScatterMode.CoverageMode) ? 255f : 16f;
 
+        // Use System.Random for better performance in tight loops
+        var random = new System.Random();
+
         // Process each detail prototype
         for (int i = 0; i < details.Count; i++)
         {
@@ -1208,7 +1211,7 @@ public class CustomTerrain : MonoBehaviour
                 for (int x = 0; x < detailWidth; x += detailSpacing)
                 {
                     // Density check
-                    if (UnityEngine.Random.Range(0f, 1f) > density)
+                    if (random.NextDouble() > density)
                     {
                         continue;
                     }
@@ -1256,7 +1259,7 @@ public class CustomTerrain : MonoBehaviour
                         }
 
                         // Set detail value scaled by edge falloff (uses y, x ordering - critical!)
-                        int detailValue = (int)(UnityEngine.Random.Range(1, maxDetailMapValue) * edgeFalloff);
+                        int detailValue = (int)(random.Next(1, (int)maxDetailMapValue + 1) * edgeFalloff);
                         if (detailValue > 0)
                         {
                             detailMap[y, x] = detailValue;

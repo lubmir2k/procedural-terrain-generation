@@ -92,7 +92,7 @@ public class CustomTerrainEditor : Editor
     // ---------------------------
     GUITableState detailMapTable;
     SerializedProperty details;
-    SerializedProperty maxDetails;
+    SerializedProperty detailObjectDistance;
     SerializedProperty detailSpacing;
     bool showDetail = false;
 
@@ -137,7 +137,7 @@ public class CustomTerrainEditor : Editor
         treeSpacing = serializedObject.FindProperty("treeSpacing");
         detailMapTable = new GUITableState("detailMapTable");
         details = serializedObject.FindProperty("details");
-        maxDetails = serializedObject.FindProperty("maxDetails");
+        detailObjectDistance = serializedObject.FindProperty("detailObjectDistance");
         detailSpacing = serializedObject.FindProperty("detailSpacing");
     }
 
@@ -415,7 +415,7 @@ public class CustomTerrainEditor : Editor
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
             GUILayout.Label("Details (Grass/Rocks)", EditorStyles.boldLabel);
 
-            EditorGUILayout.IntSlider(maxDetails, 0, 10000, new GUIContent("Max Detail Distance"));
+            EditorGUILayout.IntSlider(detailObjectDistance, 0, 10000, new GUIContent("Max Detail Distance"));
             EditorGUILayout.IntSlider(detailSpacing, 2, 20, new GUIContent("Detail Spacing"));
 
             detailMapTable = GUITableLayout.DrawTable(detailMapTable, details);
@@ -437,7 +437,7 @@ public class CustomTerrainEditor : Editor
             {
                 terrain.AddDetails();
                 // Set detail object distance on the terrain component
-                terrain.terrain.detailObjectDistance = maxDetails.intValue;
+                terrain.terrain.detailObjectDistance = detailObjectDistance.intValue;
             }
         }
 
