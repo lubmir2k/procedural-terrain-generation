@@ -189,6 +189,25 @@ public class CustomTerrain : MonoBehaviour
     public int detailObjectDistance = 5000;
     public int detailSpacing = 5;
 
+    // ---------------------------
+    // Water
+    // ---------------------------
+    public float waterHeight = 0.5f;
+    public GameObject waterGO;
+
+    // ---------------------------
+    // Erosion
+    // ---------------------------
+    public enum ErosionType { Rain = 0, Thermal = 1, Tidal = 2, River = 3, Wind = 4, Canyon = 5 }
+    public ErosionType erosionType = ErosionType.Rain;
+    public float erosionStrength = 0.1f;
+    public float erosionAmount = 0.01f;
+    public int droplets = 10;
+    public float solubility = 0.01f;
+    public int springsPerRiver = 5;
+    public int erosionSmoothAmount = 5;
+    public float windDirection = 0f;  // 0-360 degrees
+
     // Vegetation placement constants
     private const float PositionRandomOffset = 5.0f;
     private const float RaycastHeightOffset = 10f;
@@ -1276,6 +1295,390 @@ public class CustomTerrain : MonoBehaviour
 
             // Apply this detail layer
             terrainData.SetDetailLayer(0, 0, i, detailMap);
+        }
+    }
+
+    // ---------------------------
+    // Water Methods
+    // ---------------------------
+    public void AddWater()
+    {
+        GameObject water = GameObject.Find("Water");
+        if (water == null)
+        {
+            if (waterGO == null)
+            {
+                Debug.LogWarning("Water prefab is not assigned.", this);
+                return;
+            }
+            water = Instantiate(waterGO, transform.position, transform.rotation);
+            water.name = "Water";
+        }
+        water.transform.position = transform.position +
+            new Vector3(terrainData.size.x / 2, waterHeight * terrainData.size.y, terrainData.size.z / 2);
+        water.transform.localScale = new Vector3(terrainData.size.x, 1, terrainData.size.z);
+    }
+
+    public void RemoveWater()
+    {
+        GameObject water = GameObject.Find("Water");
+        if (water != null)
+        {
+            DestroyImmediate(water);
+        }
+    }
+
+    // ---------------------------
+    // Erosion Methods
+    // ---------------------------
+    public void Erode()
+    {
+        switch (erosionType)
+        {
+            case ErosionType.Rain:
+                Rain();
+                break;
+            case ErosionType.Thermal:
+                Thermal();
+                break;
+            case ErosionType.Tidal:
+                Tidal();
+                break;
+            case ErosionType.River:
+                River();
+                break;
+            case ErosionType.Wind:
+                Wind();
+                break;
+            case ErosionType.Canyon:
+                DigCanyon();
+                break;
+        }
+
+        // Apply smoothing after erosion
+        int savedSmooth = smoothAmount;
+        smoothAmount = erosionSmoothAmount;
+        Smooth();
+        smoothAmount = savedSmooth;
+    }
+
+    /// <summary>
+    /// Rain erosion - randomly picks points and subtracts height (divots/holes).
+    /// </summary>
+    void Rain()
+    {
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        for (int i = 0; i < droplets; i++)
+        {
+            int x = UnityEngine.Random.Range(0, terrainData.heightmapResolution);
+            int y = UnityEngine.Random.Range(0, terrainData.heightmapResolution);
+            heightMap[x, y] -= erosionStrength;
+        }
+
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    /// <summary>
+    /// Thermal erosion - simulates landslides by moving material from high to low neighbors.
+    /// </summary>
+    void Thermal()
+    {
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        int width = terrainData.heightmapResolution;
+        int height = terrainData.heightmapResolution;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                Vector2 pos = new Vector2(x, y);
+                List<Vector2> neighbours = Utils.GenerateNeighbours(pos, width, height);
+
+                foreach (Vector2 n in neighbours)
+                {
+                    int nx = (int)n.x;
+                    int ny = (int)n.y;
+
+                    // If current is higher than neighbor by more than erosionStrength
+                    if (heightMap[x, y] > heightMap[nx, ny] + erosionStrength)
+                    {
+                        float currentHeight = heightMap[x, y];
+                        float transfer = currentHeight * erosionAmount;
+                        heightMap[x, y] -= transfer;
+                        heightMap[nx, ny] += transfer;
+                    }
+                }
+            }
+        }
+
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    /// <summary>
+    /// Tidal erosion - erodes shorelines at the water level boundary.
+    /// </summary>
+    void Tidal()
+    {
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        int width = terrainData.heightmapResolution;
+        int height = terrainData.heightmapResolution;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                Vector2 pos = new Vector2(x, y);
+                List<Vector2> neighbours = Utils.GenerateNeighbours(pos, width, height);
+
+                foreach (Vector2 n in neighbours)
+                {
+                    int nx = (int)n.x;
+                    int ny = (int)n.y;
+
+                    // If current is below water AND neighbor is above water
+                    if (heightMap[x, y] < waterHeight && heightMap[nx, ny] > waterHeight)
+                    {
+                        // Create beach effect - pull both toward water level
+                        heightMap[nx, ny] = waterHeight;
+                        heightMap[x, y] = waterHeight;
+                    }
+                }
+            }
+        }
+
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    /// <summary>
+    /// River erosion - simulates rivers flowing from random springs, carving channels.
+    /// </summary>
+    void River()
+    {
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        float[,] erosionMap = new float[terrainData.heightmapResolution,
+                                        terrainData.heightmapResolution];
+
+        int width = terrainData.heightmapResolution;
+        int height = terrainData.heightmapResolution;
+
+        for (int i = 0; i < droplets; i++)
+        {
+            // Random starting position (spring)
+            int x = UnityEngine.Random.Range(0, width);
+            int y = UnityEngine.Random.Range(0, height);
+
+            // Run multiple river simulations from this spring
+            for (int j = 0; j < springsPerRiver; j++)
+            {
+                RunRiver(x, y, heightMap, erosionMap, width, height);
+            }
+        }
+
+        // Apply erosion map to heightmap
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                heightMap[x, y] -= erosionMap[x, y];
+            }
+        }
+
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    /// <summary>
+    /// Runs a single river simulation from a starting point, following the lowest neighbor.
+    /// </summary>
+    void RunRiver(int startX, int startY, float[,] heightMap, float[,] erosionMap, int width, int height)
+    {
+        int x = startX;
+        int y = startY;
+        int iterations = 0;
+        int maxIterations = width * height; // Prevent infinite loops
+
+        while (iterations < maxIterations)
+        {
+            iterations++;
+            erosionMap[x, y] += solubility;
+
+            Vector2 pos = new Vector2(x, y);
+            List<Vector2> neighbours = Utils.GenerateNeighbours(pos, width, height);
+
+            // Find lowest neighbor
+            float minHeight = heightMap[x, y];
+            int nextX = x;
+            int nextY = y;
+            bool foundLower = false;
+
+            Utils.Shuffle(neighbours); // Randomize to avoid bias
+
+            foreach (Vector2 n in neighbours)
+            {
+                int nx = (int)n.x;
+                int ny = (int)n.y;
+                if (heightMap[nx, ny] < minHeight)
+                {
+                    minHeight = heightMap[nx, ny];
+                    nextX = nx;
+                    nextY = ny;
+                    foundLower = true;
+                }
+            }
+
+            // Stop if no lower neighbor found (reached a basin)
+            if (!foundLower)
+                break;
+
+            x = nextX;
+            y = nextY;
+        }
+    }
+
+    /// <summary>
+    /// Wind erosion - creates ripple patterns based on wind direction using Perlin noise.
+    /// </summary>
+    void Wind()
+    {
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        int width = terrainData.heightmapResolution;
+        int height = terrainData.heightmapResolution;
+
+        // Convert wind direction to radians
+        float theta = windDirection * Mathf.Deg2Rad;
+        float sinTheta = Mathf.Sin(theta);
+        float cosTheta = Mathf.Cos(theta);
+
+        // Technical parameters (hardcoded as per plan)
+        int stepSize = 10;
+        int depositOffset = 5;
+        float digAmount = 0.001f;
+
+        // Extended loop bounds for rotation coverage
+        for (int y = -(height - 1); y < height; y += stepSize)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                // Generate noise for wave pattern
+                float noise = Mathf.PerlinNoise((float)x / width, (float)(y + height) / (height * 2)) * erosionStrength;
+
+                // Calculate dig position with rotation
+                int digX = (int)(x * cosTheta - y * sinTheta);
+                int digY = (int)(y * cosTheta + x * sinTheta);
+
+                // Calculate deposit position (offset from dig)
+                int depositX = (int)((x + depositOffset) * cosTheta - y * sinTheta);
+                int depositY = (int)(y * cosTheta + (x + depositOffset) * sinTheta);
+
+                // Bounds checking for dig position
+                if (digX >= 0 && digX < width && digY >= 0 && digY < height)
+                {
+                    // Bounds checking for deposit position
+                    if (depositX >= 0 && depositX < width && depositY >= 0 && depositY < height)
+                    {
+                        float amount = (digAmount + noise) * erosionAmount;
+                        heightMap[digX, digY] -= amount;
+                        heightMap[depositX, depositY] += amount;
+                    }
+                }
+            }
+        }
+
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    /// <summary>
+    /// Canyon erosion - carves meandering canyons across the terrain using recursive crawling.
+    /// </summary>
+    void DigCanyon()
+    {
+        float[,] heightMap = terrainData.GetHeights(0, 0,
+            terrainData.heightmapResolution,
+            terrainData.heightmapResolution);
+
+        int width = terrainData.heightmapResolution;
+        int height = terrainData.heightmapResolution;
+
+        // Start at random edge
+        int edge = UnityEngine.Random.Range(0, 4);
+        int startX, startY;
+
+        switch (edge)
+        {
+            case 0: // Top
+                startX = UnityEngine.Random.Range(0, width);
+                startY = 0;
+                break;
+            case 1: // Bottom
+                startX = UnityEngine.Random.Range(0, width);
+                startY = height - 1;
+                break;
+            case 2: // Left
+                startX = 0;
+                startY = UnityEngine.Random.Range(0, height);
+                break;
+            default: // Right
+                startX = width - 1;
+                startY = UnityEngine.Random.Range(0, height);
+                break;
+        }
+
+        CanyonCrawler(startX, startY, heightMap, width, height, erosionStrength, 0);
+
+        terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    /// <summary>
+    /// Recursive canyon carving function that meanders across terrain.
+    /// </summary>
+    void CanyonCrawler(int x, int y, float[,] heightMap, int width, int height, float currentDepth, int iteration)
+    {
+        // Exit conditions
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return; // Out of bounds
+
+        if (currentDepth <= 0)
+            return; // Reached max depth
+
+        if (iteration > width + height)
+            return; // Prevent infinite recursion
+
+        // Dig at current position
+        heightMap[x, y] -= currentDepth;
+
+        // Get neighbors and shuffle for random direction
+        Vector2 pos = new Vector2(x, y);
+        List<Vector2> neighbours = Utils.GenerateNeighbours(pos, width, height);
+        Utils.Shuffle(neighbours);
+
+        // Pick random neighbor to continue canyon
+        if (neighbours.Count > 0)
+        {
+            Vector2 next = neighbours[0];
+            CanyonCrawler((int)next.x, (int)next.y, heightMap, width, height,
+                         currentDepth - erosionAmount, iteration + 1);
+        }
+
+        // Occasionally branch (V-shaped canyon)
+        if (neighbours.Count > 1 && UnityEngine.Random.value < 0.1f)
+        {
+            Vector2 branch = neighbours[1];
+            CanyonCrawler((int)branch.x, (int)branch.y, heightMap, width, height,
+                         currentDepth * 0.5f, iteration + 1);
         }
     }
 

@@ -97,6 +97,26 @@ public class CustomTerrainEditor : Editor
     bool showDetail = false;
 
     // ---------------------------
+    // Water
+    // ---------------------------
+    SerializedProperty waterHeight;
+    SerializedProperty waterGO;
+    bool showWater = false;
+
+    // ---------------------------
+    // Erosion
+    // ---------------------------
+    SerializedProperty erosionType;
+    SerializedProperty erosionStrength;
+    SerializedProperty erosionAmount;
+    SerializedProperty droplets;
+    SerializedProperty solubility;
+    SerializedProperty springsPerRiver;
+    SerializedProperty erosionSmoothAmount;
+    SerializedProperty windDirection;
+    bool showErosion = false;
+
+    // ---------------------------
     // Scroll View
     // ---------------------------
     Vector2 scrollPos;
@@ -139,6 +159,16 @@ public class CustomTerrainEditor : Editor
         details = serializedObject.FindProperty("details");
         detailObjectDistance = serializedObject.FindProperty("detailObjectDistance");
         detailSpacing = serializedObject.FindProperty("detailSpacing");
+        waterHeight = serializedObject.FindProperty("waterHeight");
+        waterGO = serializedObject.FindProperty("waterGO");
+        erosionType = serializedObject.FindProperty("erosionType");
+        erosionStrength = serializedObject.FindProperty("erosionStrength");
+        erosionAmount = serializedObject.FindProperty("erosionAmount");
+        droplets = serializedObject.FindProperty("droplets");
+        solubility = serializedObject.FindProperty("solubility");
+        springsPerRiver = serializedObject.FindProperty("springsPerRiver");
+        erosionSmoothAmount = serializedObject.FindProperty("erosionSmoothAmount");
+        windDirection = serializedObject.FindProperty("windDirection");
     }
 
     public override void OnInspectorGUI()
@@ -438,6 +468,54 @@ public class CustomTerrainEditor : Editor
                 terrain.AddDetails();
                 // Set detail object distance on the terrain component
                 terrain.terrain.detailObjectDistance = detailObjectDistance.intValue;
+            }
+        }
+
+        // ---------------------------
+        // Water Section
+        // ---------------------------
+        showWater = EditorGUILayout.Foldout(showWater, "Water");
+        if (showWater)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Water", EditorStyles.boldLabel);
+
+            EditorGUILayout.Slider(waterHeight, 0f, 1f, new GUIContent("Water Height"));
+            EditorGUILayout.PropertyField(waterGO, new GUIContent("Water Prefab"));
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Add Water"))
+            {
+                terrain.AddWater();
+            }
+            if (GUILayout.Button("Remove Water"))
+            {
+                terrain.RemoveWater();
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        // ---------------------------
+        // Erosion Section
+        // ---------------------------
+        showErosion = EditorGUILayout.Foldout(showErosion, "Erosion");
+        if (showErosion)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Erosion", EditorStyles.boldLabel);
+
+            EditorGUILayout.PropertyField(erosionType, new GUIContent("Erosion Type"));
+            EditorGUILayout.Slider(erosionStrength, 0.001f, 1f, new GUIContent("Erosion Strength"));
+            EditorGUILayout.Slider(erosionAmount, 0.001f, 1f, new GUIContent("Erosion Amount"));
+            EditorGUILayout.IntSlider(droplets, 1, 500, new GUIContent("Droplets"));
+            EditorGUILayout.Slider(solubility, 0.001f, 1f, new GUIContent("Solubility"));
+            EditorGUILayout.IntSlider(springsPerRiver, 1, 20, new GUIContent("Springs Per River"));
+            EditorGUILayout.IntSlider(erosionSmoothAmount, 0, 10, new GUIContent("Smooth Amount"));
+            EditorGUILayout.Slider(windDirection, 0f, 360f, new GUIContent("Wind Direction"));
+
+            if (GUILayout.Button("Erode"))
+            {
+                terrain.Erode();
             }
         }
 
