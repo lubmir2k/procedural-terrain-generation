@@ -244,7 +244,7 @@ public class CustomTerrain : MonoBehaviour
         terrainData.SetHeights(0, 0, heightMap);
 
         // Clear all trees
-        terrainData.treeInstances = new TreeInstance[0];
+        terrainData.treeInstances = Array.Empty<TreeInstance>();
     }
 
     public void LoadTexture()
