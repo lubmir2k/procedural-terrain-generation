@@ -53,4 +53,15 @@ public static class TerrainTestMenu
             Debug.Log($"Terrain smoothed with Amount={terrain.smoothAmount}");
         }
     }
+
+    [MenuItem("Tools/Terrain Test/Apply Details")]
+    public static void ApplyDetails()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.AddDetails();
+            terrain.GetComponent<Terrain>().detailObjectDistance = terrain.maxDetails;
+            Debug.Log($"Details applied with MaxDetails={terrain.maxDetails}, DetailSpacing={terrain.detailSpacing}, DetailCount={terrain.details.Count}");
+        }
+    }
 }

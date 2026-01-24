@@ -35,4 +35,18 @@ public static class Utils
         // Normalize to 0-1 range
         return total / maxValue;
     }
+
+    /// <summary>
+    /// Remaps a value from one range to another.
+    /// </summary>
+    /// <param name="value">The value to remap</param>
+    /// <param name="originalMin">Original range minimum</param>
+    /// <param name="originalMax">Original range maximum</param>
+    /// <param name="targetMin">Target range minimum</param>
+    /// <param name="targetMax">Target range maximum</param>
+    /// <returns>Value remapped to target range</returns>
+    public static float Map(float value, float originalMin, float originalMax, float targetMin, float targetMax)
+    {
+        return (value - originalMin) * (targetMax - targetMin) / (originalMax - originalMin) + targetMin;
+    }
 }

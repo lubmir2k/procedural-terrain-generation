@@ -88,6 +88,15 @@ public class CustomTerrainEditor : Editor
     bool showVegetation = false;
 
     // ---------------------------
+    // Details
+    // ---------------------------
+    GUITableState detailMapTable;
+    SerializedProperty details;
+    SerializedProperty maxDetails;
+    SerializedProperty detailSpacing;
+    bool showDetail = false;
+
+    // ---------------------------
     // Scroll View
     // ---------------------------
     Vector2 scrollPos;
@@ -126,6 +135,10 @@ public class CustomTerrainEditor : Editor
         vegetation = serializedObject.FindProperty("vegetation");
         maxTrees = serializedObject.FindProperty("maxTrees");
         treeSpacing = serializedObject.FindProperty("treeSpacing");
+        detailMapTable = new GUITableState("detailMapTable");
+        details = serializedObject.FindProperty("details");
+        maxDetails = serializedObject.FindProperty("maxDetails");
+        detailSpacing = serializedObject.FindProperty("detailSpacing");
     }
 
     public override void OnInspectorGUI()
@@ -390,6 +403,41 @@ public class CustomTerrainEditor : Editor
             if (GUILayout.Button("Apply Vegetation"))
             {
                 terrain.PlantVegetation();
+            }
+        }
+
+        // ---------------------------
+        // Details Section
+        // ---------------------------
+        showDetail = EditorGUILayout.Foldout(showDetail, "Details");
+        if (showDetail)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Details (Grass/Rocks)", EditorStyles.boldLabel);
+
+            EditorGUILayout.IntSlider(maxDetails, 0, 10000, new GUIContent("Max Detail Distance"));
+            EditorGUILayout.IntSlider(detailSpacing, 2, 20, new GUIContent("Detail Spacing"));
+
+            detailMapTable = GUITableLayout.DrawTable(detailMapTable, details);
+
+            GUILayout.Space(20);
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("+"))
+            {
+                terrain.AddNewDetail();
+            }
+            if (GUILayout.Button("-"))
+            {
+                terrain.RemoveDetail();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (GUILayout.Button("Apply Details"))
+            {
+                terrain.AddDetails();
+                // Set detail object distance on the terrain component
+                terrain.GetComponent<Terrain>().detailObjectDistance = maxDetails.intValue;
             }
         }
 
