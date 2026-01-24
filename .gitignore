@@ -92,6 +92,10 @@ Library/ShaderCache/
 # Third-party Asset Store packages (download separately)
 [Aa]ssets/GUITable/
 [Aa]ssets/GUITable.meta
+[Aa]ssets/BasicTerrainAssets/
+[Aa]ssets/BasicTerrainAssets.meta
+[Aa]ssets/TerrainSampleAssets/
+[Aa]ssets/TerrainSampleAssets.meta
 
 # Local tool configurations
 .serena/
