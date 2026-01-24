@@ -1217,17 +1217,40 @@ public class CustomTerrain : MonoBehaviour
                         (float)xHM / heightmapRes
                     );
 
-                    // Calculate noise-adjusted height thresholds for soft edges
-                    float thisNoise = Utils.Map(Mathf.PerlinNoise(x * feather, y * feather), 0, 1, 0.5f, 1);
-                    float thisHeightStart = minHeight * thisNoise - overlap * thisNoise;
-                    float nextHeightStart = maxHeight * thisNoise + overlap * thisNoise;
+                    // Calculate noise-adjusted overlap for soft edges
+                    // Noise only affects the overlap amount, not the base height thresholds
+                    float noise = Mathf.PerlinNoise(x * feather, y * feather) * overlap;
+                    float thisHeightStart = minHeight - noise;
+                    float thisHeightEnd = maxHeight + noise;
 
                     // Check height and slope constraints
-                    if (terrainHeight >= thisHeightStart && terrainHeight <= nextHeightStart &&
+                    if (terrainHeight >= thisHeightStart && terrainHeight <= thisHeightEnd &&
                         steepness >= minSlope && steepness <= maxSlope)
                     {
-                        // Set detail value (uses y, x ordering - critical!)
-                        detailMap[y, x] = (int)UnityEngine.Random.Range(1, maxDetailMapValue);
+                        // Calculate edge falloff for gradual density reduction at boundaries
+                        float edgeFalloff = 1f;
+                        float edgeZone = overlap * 2f; // Size of the fade zone
+
+                        if (edgeZone > 0.001f)
+                        {
+                            // Fade near min height boundary
+                            if (terrainHeight < minHeight + edgeZone)
+                            {
+                                edgeFalloff = Mathf.InverseLerp(thisHeightStart, minHeight + edgeZone, terrainHeight);
+                            }
+                            // Fade near max height boundary
+                            else if (terrainHeight > maxHeight - edgeZone)
+                            {
+                                edgeFalloff = Mathf.InverseLerp(thisHeightEnd, maxHeight - edgeZone, terrainHeight);
+                            }
+                        }
+
+                        // Set detail value scaled by edge falloff (uses y, x ordering - critical!)
+                        int detailValue = (int)(UnityEngine.Random.Range(1, maxDetailMapValue) * edgeFalloff);
+                        if (detailValue > 0)
+                        {
+                            detailMap[y, x] = detailValue;
+                        }
                     }
                 }
             }
