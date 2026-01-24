@@ -278,11 +278,7 @@ public class CustomTerrain : MonoBehaviour
         terrainData.treeInstances = Array.Empty<TreeInstance>();
 
         // Clear all detail layers (grass, rocks, etc.)
-        for (int i = 0; i < terrainData.detailPrototypes.Length; i++)
-        {
-            int[,] emptyDetailMap = new int[terrainData.detailWidth, terrainData.detailHeight];
-            terrainData.SetDetailLayer(0, 0, i, emptyDetailMap);
-        }
+        terrainData.detailPrototypes = Array.Empty<DetailPrototype>();
     }
 
     public void LoadTexture()
@@ -1246,20 +1242,17 @@ public class CustomTerrain : MonoBehaviour
                     {
                         // Calculate edge falloff for gradual density reduction at boundaries
                         float edgeFalloff = 1f;
-                        float edgeZone = overlap * 2f; // Size of the fade zone
 
-                        if (edgeZone > 0.001f)
+                        // Fade in the overlap regions (not inside the core height range)
+                        // Fade in from thisHeightStart to minHeight
+                        if (terrainHeight < minHeight)
                         {
-                            // Fade near min height boundary
-                            if (terrainHeight < minHeight + edgeZone)
-                            {
-                                edgeFalloff = Mathf.InverseLerp(thisHeightStart, minHeight + edgeZone, terrainHeight);
-                            }
-                            // Fade near max height boundary
-                            else if (terrainHeight > maxHeight - edgeZone)
-                            {
-                                edgeFalloff = Mathf.InverseLerp(thisHeightEnd, maxHeight - edgeZone, terrainHeight);
-                            }
+                            edgeFalloff = Mathf.InverseLerp(thisHeightStart, minHeight, terrainHeight);
+                        }
+                        // Fade out from maxHeight to thisHeightEnd
+                        else if (terrainHeight > maxHeight)
+                        {
+                            edgeFalloff = Mathf.InverseLerp(thisHeightEnd, maxHeight, terrainHeight);
                         }
 
                         // Set detail value scaled by edge falloff (uses y, x ordering - critical!)
