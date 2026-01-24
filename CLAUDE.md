@@ -167,3 +167,94 @@ gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
 - Acknowledge valid points
 - Explain what was implemented
 - Reference specific changes (e.g., "Added constant", "Refactored to use X")
+
+## Code Review Lessons (Common Issues to Avoid)
+
+Based on repeated Gemini code review feedback, avoid these common issues:
+
+### HIGH Priority (Bugs/Safety)
+
+1. **Division by zero** - Always check denominators before dividing
+   ```csharp
+   // BAD
+   return (value - min) / (max - min);
+
+   // GOOD
+   if (Mathf.Approximately(max, min)) return defaultValue;
+   return (value - min) / (max - min);
+   ```
+
+2. **Infinite loop risk** - Validate loop increment variables from user input
+   ```csharp
+   // BAD
+   for (int i = 0; i < count; i += spacing) // spacing could be 0!
+
+   // GOOD
+   if (spacing < 1) { Debug.LogError("Spacing must be >= 1"); return; }
+   for (int i = 0; i < count; i += spacing)
+   ```
+
+3. **Null iteration** - Check arrays/collections before iterating
+   ```csharp
+   // BAD
+   for (int i = 0; i < data.items.Length; i++) // items could be null!
+
+   // GOOD
+   if (data.items == null) return;
+   // Or use: data.items = Array.Empty<T>();
+   ```
+
+### MEDIUM Priority (Best Practices)
+
+4. **Cache component references** - Don't use GetComponent in loops or button handlers
+   ```csharp
+   // BAD
+   obj.GetComponent<Terrain>().detailObjectDistance = value;
+
+   // GOOD (use cached field)
+   terrain.detailObjectDistance = value;
+   ```
+
+5. **Warn on invalid config** - Log warnings when user config is incomplete
+   ```csharp
+   if (item.mesh == null && item.texture == null)
+       Debug.LogWarning($"Item {i} has no mesh or texture assigned.", this);
+   ```
+
+6. **Naming consistency** - Match Unity API names for clarity
+   ```csharp
+   // BAD: misleading name
+   public int maxDetails = 5000; // Actually controls view distance
+
+   // GOOD: matches Unity API
+   public int detailObjectDistance = 5000;
+   ```
+
+7. **Performance in tight loops** - Use System.Random instead of UnityEngine.Random
+   ```csharp
+   // BAD (thread-safe overhead)
+   for (...) { if (UnityEngine.Random.Range(0f,1f) > density) ... }
+
+   // GOOD (faster for editor code)
+   var random = new System.Random();
+   for (...) { if (random.NextDouble() > density) ... }
+   ```
+
+8. **Use Array.Empty<T>()** - Consistent empty array pattern
+   ```csharp
+   // BAD: inconsistent
+   data.items = null;
+
+   // GOOD: explicit empty
+   data.items = Array.Empty<ItemType>();
+   ```
+
+9. **Skip invalid iterations** - Don't process items that produce no output
+   ```csharp
+   for (int i = 0; i < items.Count; i++)
+   {
+       if (items[i].mesh == null && items[i].texture == null)
+           continue; // Skip invalid items early
+       // ... expensive processing
+   }
+   ```

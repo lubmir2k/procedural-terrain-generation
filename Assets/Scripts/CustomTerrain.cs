@@ -1196,6 +1196,12 @@ public class CustomTerrain : MonoBehaviour
         // Process each detail prototype
         for (int i = 0; i < details.Count; i++)
         {
+            // Skip invalid detail layers (no mesh or texture)
+            if (details[i].prototype == null && details[i].prototypeTexture == null)
+            {
+                continue;
+            }
+
             int[,] detailMap = new int[detailHeight, detailWidth];
 
             float minHeight = details[i].minHeight;
