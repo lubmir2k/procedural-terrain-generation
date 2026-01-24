@@ -110,6 +110,27 @@ public class CustomTerrain : MonoBehaviour
         public bool remove = false;
     }
 
+    // Detail (grass/rocks)
+    [System.Serializable]
+    public class Detail
+    {
+        public GameObject prototype = null;        // For mesh details
+        public Texture2D prototypeTexture = null;  // For billboard details
+        public float minHeight = 0.1f;
+        public float maxHeight = 0.2f;
+        public float minSlope = 0f;
+        public float maxSlope = 90f;
+        public Color dryColor = Color.white;
+        public Color healthyColor = Color.white;
+        public Vector2 heightRange = new Vector2(1, 1);  // min/max scale height
+        public Vector2 widthRange = new Vector2(1, 1);   // min/max scale width
+        public float noiseSpread = 0.5f;
+        public float overlap = 0.01f;
+        public float feather = 0.05f;
+        public float density = 0.5f;
+        public bool remove = false;
+    }
+
     public List<PerlinParameters> perlinParameters = new List<PerlinParameters>()
     {
         new PerlinParameters()
@@ -157,6 +178,16 @@ public class CustomTerrain : MonoBehaviour
     {
         new Vegetation()
     };
+
+    // ---------------------------
+    // Details (grass/rocks)
+    // ---------------------------
+    public List<Detail> details = new List<Detail>()
+    {
+        new Detail()
+    };
+    public int detailObjectDistance = 5000;
+    public int detailSpacing = 5;
 
     // Vegetation placement constants
     private const float PositionRandomOffset = 5.0f;
@@ -245,6 +276,9 @@ public class CustomTerrain : MonoBehaviour
 
         // Clear all trees
         terrainData.treeInstances = Array.Empty<TreeInstance>();
+
+        // Clear all detail layers (grass, rocks, etc.)
+        terrainData.detailPrototypes = Array.Empty<DetailPrototype>();
     }
 
     public void LoadTexture()
@@ -1074,6 +1108,175 @@ public class CustomTerrain : MonoBehaviour
     TREESDONE:
         // Apply all tree instances to the terrain
         terrainData.treeInstances = allVegetation.ToArray();
+    }
+
+    // ---------------------------
+    // Detail Methods
+    // ---------------------------
+    public void AddNewDetail()
+    {
+        details.Add(new Detail());
+    }
+
+    public void RemoveDetail()
+    {
+        details.RemoveAll(d => d.remove);
+
+        if (details.Count == 0)
+        {
+            details.Add(new Detail());
+        }
+    }
+
+    public void AddDetails()
+    {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        if (detailSpacing < 1)
+        {
+            Debug.LogError("Detail Spacing must be at least 1 to avoid an infinite loop.", this);
+            return;
+        }
+
+        // Clear existing detail layers
+        terrainData.detailPrototypes = Array.Empty<DetailPrototype>();
+
+        // Create detail prototypes from our details list
+        DetailPrototype[] newDetailPrototypes = new DetailPrototype[details.Count];
+
+        for (int i = 0; i < details.Count; i++)
+        {
+            newDetailPrototypes[i] = new DetailPrototype();
+
+            if (details[i].prototype != null)
+            {
+                // Mesh-based detail (rocks, etc.)
+                newDetailPrototypes[i].prototype = details[i].prototype;
+                newDetailPrototypes[i].usePrototypeMesh = true;
+                newDetailPrototypes[i].renderMode = DetailRenderMode.Grass; // Fixes URP transparency
+            }
+            else if (details[i].prototypeTexture != null)
+            {
+                // Billboard/texture-based detail (grass, ferns)
+                newDetailPrototypes[i].prototypeTexture = details[i].prototypeTexture;
+                newDetailPrototypes[i].usePrototypeMesh = false;
+                newDetailPrototypes[i].renderMode = DetailRenderMode.GrassBillboard;
+            }
+            else
+            {
+                Debug.LogWarning($"Detail layer {i} has no mesh or texture assigned. It will not be visible.", this);
+            }
+
+            newDetailPrototypes[i].dryColor = details[i].dryColor;
+            newDetailPrototypes[i].healthyColor = details[i].healthyColor;
+            newDetailPrototypes[i].minHeight = details[i].heightRange.x;
+            newDetailPrototypes[i].maxHeight = details[i].heightRange.y;
+            newDetailPrototypes[i].minWidth = details[i].widthRange.x;
+            newDetailPrototypes[i].maxWidth = details[i].widthRange.y;
+            newDetailPrototypes[i].noiseSpread = details[i].noiseSpread;
+        }
+
+        terrainData.detailPrototypes = newDetailPrototypes;
+
+        // Get resolution for detail map
+        int detailWidth = terrainData.detailWidth;
+        int detailHeight = terrainData.detailHeight;
+        int heightmapRes = terrainData.heightmapResolution;
+
+        // Determine max value based on scatter mode
+        float maxDetailMapValue = (terrainData.detailScatterMode == DetailScatterMode.CoverageMode) ? 255f : 16f;
+
+        // Use System.Random for better performance in tight loops
+        var random = new System.Random();
+
+        // Process each detail prototype
+        for (int i = 0; i < details.Count; i++)
+        {
+            // Skip invalid detail layers (no mesh or texture)
+            if (details[i].prototype == null && details[i].prototypeTexture == null)
+            {
+                continue;
+            }
+
+            int[,] detailMap = new int[detailHeight, detailWidth];
+
+            float minHeight = details[i].minHeight;
+            float maxHeight = details[i].maxHeight;
+            float minSlope = details[i].minSlope;
+            float maxSlope = details[i].maxSlope;
+            float overlap = details[i].overlap;
+            float feather = details[i].feather;
+            float density = details[i].density;
+
+            for (int y = 0; y < detailHeight; y += detailSpacing)
+            {
+                for (int x = 0; x < detailWidth; x += detailSpacing)
+                {
+                    // Density check
+                    if (random.NextDouble() > density)
+                    {
+                        continue;
+                    }
+
+                    // Convert detail coords to heightmap coords (critical coordinate flip!)
+                    int xHM = (int)((float)x / detailWidth * heightmapRes);
+                    int yHM = (int)((float)y / detailHeight * heightmapRes);
+
+                    // Clamp to valid range
+                    xHM = Mathf.Clamp(xHM, 0, heightmapRes - 1);
+                    yHM = Mathf.Clamp(yHM, 0, heightmapRes - 1);
+
+                    // Get height (normalized 0-1) - note the coordinate flip: GetHeight(y, x)
+                    float terrainHeight = terrainData.GetHeight(yHM, xHM) / terrainData.size.y;
+
+                    // Get steepness with normalized coordinates (also flipped)
+                    float steepness = terrainData.GetSteepness(
+                        (float)yHM / heightmapRes,
+                        (float)xHM / heightmapRes
+                    );
+
+                    // Calculate noise-adjusted overlap for soft edges
+                    // Noise only affects the overlap amount, not the base height thresholds
+                    float noise = Mathf.PerlinNoise(x * feather, y * feather) * overlap;
+                    float thisHeightStart = minHeight - noise;
+                    float thisHeightEnd = maxHeight + noise;
+
+                    // Check height and slope constraints
+                    if (terrainHeight >= thisHeightStart && terrainHeight <= thisHeightEnd &&
+                        steepness >= minSlope && steepness <= maxSlope)
+                    {
+                        // Calculate edge falloff for gradual density reduction at boundaries
+                        float edgeFalloff = 1f;
+
+                        // Fade in the overlap regions (not inside the core height range)
+                        // Fade in from thisHeightStart to minHeight
+                        if (terrainHeight < minHeight)
+                        {
+                            edgeFalloff = Mathf.InverseLerp(thisHeightStart, minHeight, terrainHeight);
+                        }
+                        // Fade out from maxHeight to thisHeightEnd
+                        else if (terrainHeight > maxHeight)
+                        {
+                            edgeFalloff = Mathf.InverseLerp(thisHeightEnd, maxHeight, terrainHeight);
+                        }
+
+                        // Set detail value scaled by edge falloff (uses y, x ordering - critical!)
+                        int detailValue = (int)(random.Next(1, (int)maxDetailMapValue + 1) * edgeFalloff);
+                        if (detailValue > 0)
+                        {
+                            detailMap[y, x] = detailValue;
+                        }
+                    }
+                }
+            }
+
+            // Apply this detail layer
+            terrainData.SetDetailLayer(0, 0, i, detailMap);
+        }
     }
 
 #if UNITY_EDITOR
