@@ -194,6 +194,7 @@ public class CustomTerrain : MonoBehaviour
     // ---------------------------
     public float waterHeight = 0.5f;
     public GameObject waterGO;
+    private GameObject _waterInstance;
 
     // ---------------------------
     // Erosion
@@ -1303,28 +1304,27 @@ public class CustomTerrain : MonoBehaviour
     // ---------------------------
     public void AddWater()
     {
-        GameObject water = GameObject.Find("Water");
-        if (water == null)
+        if (_waterInstance == null)
         {
             if (waterGO == null)
             {
                 Debug.LogWarning("Water prefab is not assigned.", this);
                 return;
             }
-            water = Instantiate(waterGO, transform.position, transform.rotation);
-            water.name = "Water";
+            _waterInstance = Instantiate(waterGO, transform.position, transform.rotation);
+            _waterInstance.name = "Water";
         }
-        water.transform.position = transform.position +
+        _waterInstance.transform.position = transform.position +
             new Vector3(terrainData.size.x / 2, waterHeight * terrainData.size.y, terrainData.size.z / 2);
-        water.transform.localScale = new Vector3(terrainData.size.x, 1, terrainData.size.z);
+        _waterInstance.transform.localScale = new Vector3(terrainData.size.x, 1, terrainData.size.z);
     }
 
     public void RemoveWater()
     {
-        GameObject water = GameObject.Find("Water");
-        if (water != null)
+        if (_waterInstance != null)
         {
-            DestroyImmediate(water);
+            DestroyImmediate(_waterInstance);
+            _waterInstance = null;
         }
     }
 
@@ -1375,7 +1375,7 @@ public class CustomTerrain : MonoBehaviour
         {
             int x = UnityEngine.Random.Range(0, terrainData.heightmapResolution);
             int y = UnityEngine.Random.Range(0, terrainData.heightmapResolution);
-            heightMap[x, y] -= erosionStrength;
+            heightMap[x, y] = Mathf.Max(0f, heightMap[x, y] - erosionStrength);
         }
 
         terrainData.SetHeights(0, 0, heightMap);
@@ -1409,9 +1409,9 @@ public class CustomTerrain : MonoBehaviour
                     if (heightMap[x, y] > heightMap[nx, ny] + erosionStrength)
                     {
                         float currentHeight = heightMap[x, y];
-                        float transfer = currentHeight * erosionAmount;
+                        float transfer = Mathf.Min(currentHeight * erosionAmount, currentHeight);
                         heightMap[x, y] -= transfer;
-                        heightMap[nx, ny] += transfer;
+                        heightMap[nx, ny] = Mathf.Min(1f, heightMap[nx, ny] + transfer);
                     }
                 }
             }
@@ -1491,7 +1491,7 @@ public class CustomTerrain : MonoBehaviour
         {
             for (int x = 0; x < width; x++)
             {
-                heightMap[x, y] -= erosionMap[x, y];
+                heightMap[x, y] = Mathf.Max(0f, heightMap[x, y] - erosionMap[x, y]);
             }
         }
 
@@ -1591,8 +1591,9 @@ public class CustomTerrain : MonoBehaviour
                     if (depositX >= 0 && depositX < width && depositY >= 0 && depositY < height)
                     {
                         float amount = (digAmount + noise) * erosionAmount;
-                        heightMap[digX, digY] -= amount;
-                        heightMap[depositX, depositY] += amount;
+                        float actualAmount = Mathf.Min(amount, heightMap[digX, digY]);
+                        heightMap[digX, digY] -= actualAmount;
+                        heightMap[depositX, depositY] = Mathf.Min(1f, heightMap[depositX, depositY] + actualAmount);
                     }
                 }
             }
@@ -1658,7 +1659,7 @@ public class CustomTerrain : MonoBehaviour
             return; // Prevent infinite recursion
 
         // Dig at current position
-        heightMap[x, y] -= currentDepth;
+        heightMap[x, y] = Mathf.Max(0f, heightMap[x, y] - currentDepth);
 
         // Get neighbors and shuffle for random direction
         Vector2 pos = new Vector2(x, y);
