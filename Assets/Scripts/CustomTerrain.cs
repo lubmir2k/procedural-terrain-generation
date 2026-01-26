@@ -1393,6 +1393,10 @@ public class CustomTerrain : MonoBehaviour
         int width = terrainData.heightmapResolution;
         int height = terrainData.heightmapResolution;
 
+        // Double-buffer: read from heightMap, write changes to result
+        float[,] result = new float[width, height];
+        System.Array.Copy(heightMap, result, heightMap.Length);
+
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -1405,19 +1409,19 @@ public class CustomTerrain : MonoBehaviour
                     int nx = (int)n.x;
                     int ny = (int)n.y;
 
-                    // If current is higher than neighbor by more than erosionStrength
+                    // If current is higher than neighbor by more than erosionStrength (read from original)
                     if (heightMap[x, y] > heightMap[nx, ny] + erosionStrength)
                     {
                         float currentHeight = heightMap[x, y];
                         float transfer = Mathf.Min(currentHeight * erosionAmount, currentHeight);
-                        heightMap[x, y] -= transfer;
-                        heightMap[nx, ny] = Mathf.Min(1f, heightMap[nx, ny] + transfer);
+                        result[x, y] -= transfer;
+                        result[nx, ny] = Mathf.Min(1f, result[nx, ny] + transfer);
                     }
                 }
             }
         }
 
-        terrainData.SetHeights(0, 0, heightMap);
+        terrainData.SetHeights(0, 0, result);
     }
 
     /// <summary>
@@ -1432,6 +1436,10 @@ public class CustomTerrain : MonoBehaviour
         int width = terrainData.heightmapResolution;
         int height = terrainData.heightmapResolution;
 
+        // Double-buffer: read from heightMap, write changes to result
+        float[,] result = new float[width, height];
+        System.Array.Copy(heightMap, result, heightMap.Length);
+
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -1444,18 +1452,18 @@ public class CustomTerrain : MonoBehaviour
                     int nx = (int)n.x;
                     int ny = (int)n.y;
 
-                    // If current is below water AND neighbor is above water
+                    // If current is below water AND neighbor is above water (read from original)
                     if (heightMap[x, y] < waterHeight && heightMap[nx, ny] > waterHeight)
                     {
-                        // Create beach effect - pull both toward water level
-                        heightMap[nx, ny] = waterHeight;
-                        heightMap[x, y] = waterHeight;
+                        // Create beach effect - gradually pull both toward water level using Lerp
+                        result[nx, ny] = Mathf.Lerp(result[nx, ny], waterHeight, erosionStrength);
+                        result[x, y] = Mathf.Lerp(result[x, y], waterHeight, erosionStrength);
                     }
                 }
             }
         }
 
-        terrainData.SetHeights(0, 0, heightMap);
+        terrainData.SetHeights(0, 0, result);
     }
 
     /// <summary>
@@ -1558,6 +1566,10 @@ public class CustomTerrain : MonoBehaviour
         int width = terrainData.heightmapResolution;
         int height = terrainData.heightmapResolution;
 
+        // Double-buffer: read from heightMap, write changes to result
+        float[,] result = new float[width, height];
+        System.Array.Copy(heightMap, result, heightMap.Length);
+
         // Convert wind direction to radians
         float theta = windDirection * Mathf.Deg2Rad;
         float sinTheta = Mathf.Sin(theta);
@@ -1592,18 +1604,19 @@ public class CustomTerrain : MonoBehaviour
                     {
                         float amount = (digAmount + noise) * erosionAmount;
                         float actualAmount = Mathf.Min(amount, heightMap[digX, digY]);
-                        heightMap[digX, digY] -= actualAmount;
-                        heightMap[depositX, depositY] = Mathf.Min(1f, heightMap[depositX, depositY] + actualAmount);
+                        result[digX, digY] -= actualAmount;
+                        result[depositX, depositY] = Mathf.Min(1f, result[depositX, depositY] + actualAmount);
                     }
                 }
             }
         }
 
-        terrainData.SetHeights(0, 0, heightMap);
+        terrainData.SetHeights(0, 0, result);
     }
 
     /// <summary>
-    /// Canyon erosion - carves meandering canyons across the terrain using recursive crawling.
+    /// Canyon erosion - carves meandering canyons across the terrain using iterative crawling.
+    /// Uses explicit Stack instead of recursion to prevent StackOverflowException on large terrains.
     /// </summary>
     void DigCanyon()
     {
@@ -1638,49 +1651,49 @@ public class CustomTerrain : MonoBehaviour
                 break;
         }
 
-        CanyonCrawler(startX, startY, heightMap, width, height, erosionStrength, 0);
+        // Iterative canyon carving using explicit stack (prevents StackOverflowException)
+        var stack = new Stack<(int x, int y, float depth, int iteration)>();
+        stack.Push((startX, startY, erosionStrength, 0));
+        int maxIterations = width + height;
+
+        while (stack.Count > 0)
+        {
+            var (x, y, currentDepth, iteration) = stack.Pop();
+
+            // Exit conditions
+            if (x < 0 || x >= width || y < 0 || y >= height)
+                continue; // Out of bounds
+
+            if (currentDepth <= 0)
+                continue; // Reached max depth
+
+            if (iteration > maxIterations)
+                continue; // Prevent runaway
+
+            // Dig at current position
+            heightMap[x, y] = Mathf.Max(0f, heightMap[x, y] - currentDepth);
+
+            // Get neighbors and shuffle for random direction
+            Vector2 pos = new Vector2(x, y);
+            List<Vector2> neighbours = Utils.GenerateNeighbours(pos, width, height);
+            Utils.Shuffle(neighbours);
+
+            // Pick random neighbor to continue canyon
+            if (neighbours.Count > 0)
+            {
+                Vector2 next = neighbours[0];
+                stack.Push(((int)next.x, (int)next.y, currentDepth - erosionAmount, iteration + 1));
+            }
+
+            // Occasionally branch (V-shaped canyon)
+            if (neighbours.Count > 1 && UnityEngine.Random.value < 0.1f)
+            {
+                Vector2 branch = neighbours[1];
+                stack.Push(((int)branch.x, (int)branch.y, currentDepth * 0.5f, iteration + 1));
+            }
+        }
 
         terrainData.SetHeights(0, 0, heightMap);
-    }
-
-    /// <summary>
-    /// Recursive canyon carving function that meanders across terrain.
-    /// </summary>
-    void CanyonCrawler(int x, int y, float[,] heightMap, int width, int height, float currentDepth, int iteration)
-    {
-        // Exit conditions
-        if (x < 0 || x >= width || y < 0 || y >= height)
-            return; // Out of bounds
-
-        if (currentDepth <= 0)
-            return; // Reached max depth
-
-        if (iteration > width + height)
-            return; // Prevent infinite recursion
-
-        // Dig at current position
-        heightMap[x, y] = Mathf.Max(0f, heightMap[x, y] - currentDepth);
-
-        // Get neighbors and shuffle for random direction
-        Vector2 pos = new Vector2(x, y);
-        List<Vector2> neighbours = Utils.GenerateNeighbours(pos, width, height);
-        Utils.Shuffle(neighbours);
-
-        // Pick random neighbor to continue canyon
-        if (neighbours.Count > 0)
-        {
-            Vector2 next = neighbours[0];
-            CanyonCrawler((int)next.x, (int)next.y, heightMap, width, height,
-                         currentDepth - erosionAmount, iteration + 1);
-        }
-
-        // Occasionally branch (V-shaped canyon)
-        if (neighbours.Count > 1 && UnityEngine.Random.value < 0.1f)
-        {
-            Vector2 branch = neighbours[1];
-            CanyonCrawler((int)branch.x, (int)branch.y, heightMap, width, height,
-                         currentDepth * 0.5f, iteration + 1);
-        }
     }
 
 #if UNITY_EDITOR
