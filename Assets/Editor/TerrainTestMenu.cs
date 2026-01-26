@@ -64,4 +64,24 @@ public static class TerrainTestMenu
             Debug.Log($"Details applied with DetailObjectDistance={terrain.detailObjectDistance}, DetailSpacing={terrain.detailSpacing}, DetailCount={terrain.details.Count}");
         }
     }
+
+    [MenuItem("Tools/Terrain Test/Erode")]
+    public static void ErodeTerrain()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.Erode();
+            Debug.Log($"Erosion applied with Type={terrain.erosionType}, Strength={terrain.erosionStrength}, Amount={terrain.erosionAmount}");
+        }
+    }
+
+    [MenuItem("Tools/Terrain Test/Add Water")]
+    public static void AddWater()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.AddWater();
+            Debug.Log($"Water added at height={terrain.waterHeight}");
+        }
+    }
 }

@@ -1,7 +1,10 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public static class Utils
 {
+    // Random instance for Shuffle method
+    private static System.Random rng = new System.Random();
     /// <summary>
     /// Fractal Brownian Motion - combines multiple octaves of Perlin noise
     /// </summary>
@@ -52,5 +55,45 @@ public static class Utils
             return targetMin;
         }
         return (value - originalMin) * (targetMax - targetMin) / (originalMax - originalMin) + targetMin;
+    }
+
+    /// <summary>
+    /// Generates a list of valid neighbor positions for erosion algorithms.
+    /// Returns 8-connected neighbors that are within bounds.
+    /// </summary>
+    /// <param name="pos">Current position</param>
+    /// <param name="width">Map width</param>
+    /// <param name="height">Map height</param>
+    /// <returns>List of valid neighbor positions</returns>
+    public static List<Vector2> GenerateNeighbours(Vector2 pos, int width, int height)
+    {
+        List<Vector2> neighbours = new List<Vector2>();
+        for (int y = -1; y <= 1; y++)
+        {
+            for (int x = -1; x <= 1; x++)
+            {
+                if (x == 0 && y == 0) continue;
+                Vector2 n = new Vector2(pos.x + x, pos.y + y);
+                if (n.x >= 0 && n.x < width && n.y >= 0 && n.y < height)
+                    neighbours.Add(n);
+            }
+        }
+        return neighbours;
+    }
+
+    /// <summary>
+    /// Fisher-Yates shuffle algorithm for randomizing lists in-place.
+    /// </summary>
+    public static void Shuffle<T>(this IList<T> list)
+    {
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = rng.Next(n + 1);
+            T value = list[k];
+            list[k] = list[n];
+            list[n] = value;
+        }
     }
 }
