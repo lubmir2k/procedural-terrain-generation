@@ -258,3 +258,63 @@ Based on repeated Gemini code review feedback, avoid these common issues:
        // ... expensive processing
    }
    ```
+
+### Terrain/Erosion Specific (from PR #10)
+
+10. **Clamp terrain heights** - Always clamp heightmap values to [0,1] after modification
+    ```csharp
+    // BAD - can go negative or exceed 1
+    heightMap[x, y] -= erosionAmount;
+    heightMap[x, y] += depositAmount;
+
+    // GOOD - always clamp
+    heightMap[x, y] = Mathf.Max(0f, heightMap[x, y] - erosionAmount);
+    heightMap[x, y] = Mathf.Min(1f, heightMap[x, y] + depositAmount);
+    ```
+
+11. **Double-buffer for neighbor iteration** - Don't modify array while reading neighbors
+    ```csharp
+    // BAD - iteration order affects results
+    foreach (var neighbor in neighbors)
+        heightMap[x, y] -= transfer;
+        heightMap[nx, ny] += transfer;
+
+    // GOOD - read from original, write to result
+    float[,] result = new float[width, height];
+    System.Array.Copy(heightMap, result, heightMap.Length);
+    foreach (var neighbor in neighbors)
+        if (heightMap[x, y] > heightMap[nx, ny]) // read original
+            result[x, y] -= transfer;            // write to result
+    terrainData.SetHeights(0, 0, result);
+    ```
+
+12. **Iterative over recursive for terrain** - Prevent StackOverflowException
+    ```csharp
+    // BAD - deep recursion on large terrains
+    void CrawlTerrain(int x, int y) {
+        Process(x, y);
+        CrawlTerrain(nextX, nextY); // can overflow stack
+    }
+
+    // GOOD - explicit stack
+    var stack = new Stack<(int x, int y)>();
+    stack.Push((startX, startY));
+    while (stack.Count > 0) {
+        var (x, y) = stack.Pop();
+        Process(x, y);
+        stack.Push((nextX, nextY));
+    }
+    ```
+
+13. **Cache spawned objects** - Never use GameObject.Find() for managed instances
+    ```csharp
+    // BAD - scene-wide search, brittle
+    GameObject water = GameObject.Find("Water");
+
+    // GOOD - cache the reference
+    private GameObject _waterInstance;
+    public void AddWater() {
+        if (_waterInstance == null)
+            _waterInstance = Instantiate(waterPrefab);
+    }
+    ```
