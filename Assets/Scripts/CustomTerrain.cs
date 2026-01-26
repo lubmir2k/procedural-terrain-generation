@@ -1413,7 +1413,7 @@ public class CustomTerrain : MonoBehaviour
                     if (heightMap[x, y] > heightMap[nx, ny] + erosionStrength)
                     {
                         float currentHeight = heightMap[x, y];
-                        float transfer = Mathf.Min(currentHeight * erosionAmount, currentHeight);
+                        float transfer = currentHeight * erosionAmount;
                         result[x, y] -= transfer;
                         result[nx, ny] = Mathf.Min(1f, result[nx, ny] + transfer);
                     }
