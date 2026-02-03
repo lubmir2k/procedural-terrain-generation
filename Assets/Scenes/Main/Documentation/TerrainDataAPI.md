@@ -81,6 +81,24 @@ if (height > vegetation.minHeight && height < vegetation.maxHeight)
     // Spawn tree at this location
 ```
 
+## Heightmap Texture Import Settings
+
+When importing heightmap images (PNG, RAW, etc.) for use with `LoadTexture()`, configure these import settings:
+
+| Setting | Value | Reason |
+|---------|-------|--------|
+| **Generate Mip Maps** | Off | Mipmaps average neighboring pixels when downsampling, corrupting precise height data |
+| **sRGB (Color Texture)** | Off | Heightmaps are linear data, not color. sRGB gamma correction distorts values |
+| **Filter Mode** | Point or Bilinear | Point preserves exact values; Bilinear for smoother sampling |
+| **Compression** | None | Lossy compression introduces artifacts in height data |
+| **Read/Write** | Enabled | Required if accessing pixels via `GetPixels()` at runtime |
+
+**Why Mipmaps Are Problematic for Heightmaps:**
+- Heightmaps store elevation where each pixel = specific height value
+- Mipmap generation averages pixels, blurring the data
+- If wrong mip level is sampled, terrain gets incorrect smoothed heights
+- Mipmaps add ~33% memory with zero benefit for data textures
+
 ## Best Practices
 
 1. **Always clamp heights** - Keep values in [0,1] range after modifications
