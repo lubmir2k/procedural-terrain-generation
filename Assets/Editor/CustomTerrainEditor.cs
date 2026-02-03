@@ -132,12 +132,28 @@ public class CustomTerrainEditor : Editor
     // Clouds
     // ---------------------------
     SerializedProperty cloudData;
+    SerializedProperty cloudMode;
+    SerializedProperty cloudMat;
+    SerializedProperty skydomeMesh;
+    SerializedProperty cloudHeight;
+    SerializedProperty cloudScale;
     bool showClouds = false;
 
     // ---------------------------
     // Rain
     // ---------------------------
     SerializedProperty rainData;
+    SerializedProperty rainMaxParticles;
+    SerializedProperty rainEmissionRate;
+    SerializedProperty rainParticleLifetime;
+    SerializedProperty rainStartSpeed;
+    SerializedProperty rainStartSize;
+    SerializedProperty rainColor;
+    SerializedProperty rainGravityModifier;
+    SerializedProperty rainEnableCollision;
+    SerializedProperty rainEnableSplashes;
+    SerializedProperty rainMaterial;
+    SerializedProperty rainSplashMaterial;
     bool showRain = false;
 
     // ---------------------------
@@ -201,7 +217,23 @@ public class CustomTerrainEditor : Editor
         fogStartDistance = serializedObject.FindProperty("fogStartDistance");
         fogEndDistance = serializedObject.FindProperty("fogEndDistance");
         cloudData = serializedObject.FindProperty("cloudData");
+        cloudMode = cloudData.FindPropertyRelative("mode");
+        cloudMat = cloudData.FindPropertyRelative("cloudMaterial");
+        skydomeMesh = cloudData.FindPropertyRelative("skydomeMesh");
+        cloudHeight = cloudData.FindPropertyRelative("cloudHeight");
+        cloudScale = cloudData.FindPropertyRelative("cloudScale");
         rainData = serializedObject.FindProperty("rainData");
+        rainMaxParticles = rainData.FindPropertyRelative("maxParticles");
+        rainEmissionRate = rainData.FindPropertyRelative("emissionRate");
+        rainParticleLifetime = rainData.FindPropertyRelative("particleLifetime");
+        rainStartSpeed = rainData.FindPropertyRelative("startSpeed");
+        rainStartSize = rainData.FindPropertyRelative("startSize");
+        rainColor = rainData.FindPropertyRelative("rainColor");
+        rainGravityModifier = rainData.FindPropertyRelative("gravityModifier");
+        rainEnableCollision = rainData.FindPropertyRelative("enableCollision");
+        rainEnableSplashes = rainData.FindPropertyRelative("enableSplashes");
+        rainMaterial = rainData.FindPropertyRelative("rainMaterial");
+        rainSplashMaterial = rainData.FindPropertyRelative("splashMaterial");
     }
 
     public override void OnInspectorGUI()
@@ -596,13 +628,7 @@ public class CustomTerrainEditor : Editor
         {
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
 
-            // Display CloudData properties
-            SerializedProperty cloudMode = cloudData.FindPropertyRelative("mode");
-            SerializedProperty cloudMat = cloudData.FindPropertyRelative("cloudMaterial");
-            SerializedProperty skydomeMesh = cloudData.FindPropertyRelative("skydomeMesh");
-            SerializedProperty cloudHeight = cloudData.FindPropertyRelative("cloudHeight");
-            SerializedProperty cloudScale = cloudData.FindPropertyRelative("cloudScale");
-
+            // Display CloudData properties (cached in OnEnable for performance)
             EditorGUILayout.PropertyField(cloudMode, new GUIContent("Cloud Mode"));
 
             bool isSkydome = cloudMode.enumValueIndex == (int)CustomTerrain.CloudMode.Skydome;
@@ -652,30 +678,18 @@ public class CustomTerrainEditor : Editor
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
             GUILayout.Label("Rain Particle System", EditorStyles.boldLabel);
 
-            // Display all RainData properties
-            SerializedProperty maxParticles = rainData.FindPropertyRelative("maxParticles");
-            SerializedProperty emissionRate = rainData.FindPropertyRelative("emissionRate");
-            SerializedProperty particleLifetime = rainData.FindPropertyRelative("particleLifetime");
-            SerializedProperty startSpeed = rainData.FindPropertyRelative("startSpeed");
-            SerializedProperty startSize = rainData.FindPropertyRelative("startSize");
-            SerializedProperty rainColor = rainData.FindPropertyRelative("rainColor");
-            SerializedProperty gravityMod = rainData.FindPropertyRelative("gravityModifier");
-            SerializedProperty enableCollision = rainData.FindPropertyRelative("enableCollision");
-            SerializedProperty enableSplashes = rainData.FindPropertyRelative("enableSplashes");
-            SerializedProperty rainMat = rainData.FindPropertyRelative("rainMaterial");
-            SerializedProperty splashMat = rainData.FindPropertyRelative("splashMaterial");
-
-            EditorGUILayout.IntSlider(maxParticles, 500, 10000, new GUIContent("Max Particles"));
-            EditorGUILayout.Slider(emissionRate, 50f, 2000f, new GUIContent("Emission Rate"));
-            EditorGUILayout.Slider(particleLifetime, 1f, 10f, new GUIContent("Particle Lifetime"));
-            EditorGUILayout.Slider(startSpeed, 5f, 50f, new GUIContent("Start Speed"));
-            EditorGUILayout.PropertyField(startSize, new GUIContent("Start Size (Min/Max)"));
+            // Display all RainData properties (cached in OnEnable for performance)
+            EditorGUILayout.IntSlider(rainMaxParticles, 500, 10000, new GUIContent("Max Particles"));
+            EditorGUILayout.Slider(rainEmissionRate, 50f, 2000f, new GUIContent("Emission Rate"));
+            EditorGUILayout.Slider(rainParticleLifetime, 1f, 10f, new GUIContent("Particle Lifetime"));
+            EditorGUILayout.Slider(rainStartSpeed, 5f, 50f, new GUIContent("Start Speed"));
+            EditorGUILayout.PropertyField(rainStartSize, new GUIContent("Start Size (Min/Max)"));
             EditorGUILayout.PropertyField(rainColor, new GUIContent("Rain Color"));
-            EditorGUILayout.Slider(gravityMod, 0f, 3f, new GUIContent("Gravity Modifier"));
-            EditorGUILayout.PropertyField(enableCollision, new GUIContent("Enable Collision"));
-            EditorGUILayout.PropertyField(enableSplashes, new GUIContent("Enable Splashes"));
-            EditorGUILayout.PropertyField(rainMat, new GUIContent("Rain Material"));
-            EditorGUILayout.PropertyField(splashMat, new GUIContent("Splash Material"));
+            EditorGUILayout.Slider(rainGravityModifier, 0f, 3f, new GUIContent("Gravity Modifier"));
+            EditorGUILayout.PropertyField(rainEnableCollision, new GUIContent("Enable Collision"));
+            EditorGUILayout.PropertyField(rainEnableSplashes, new GUIContent("Enable Splashes"));
+            EditorGUILayout.PropertyField(rainMaterial, new GUIContent("Rain Material"));
+            EditorGUILayout.PropertyField(rainSplashMaterial, new GUIContent("Splash Material"));
 
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Generate Rain"))

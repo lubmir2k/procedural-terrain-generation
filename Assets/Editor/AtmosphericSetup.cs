@@ -90,7 +90,7 @@ public static class AtmosphericSetup
             foreach (string guid in guids)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
-                if (path.EndsWith("Clouds.mat"))
+                if (System.IO.Path.GetFileName(path) == "Clouds.mat")
                 {
                     matchingPaths.Add(path);
                 }
