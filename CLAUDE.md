@@ -168,6 +168,17 @@ gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
 - Explain what was implemented
 - Reference specific changes (e.g., "Added constant", "Refactored to use X")
 
+## Pre-Commit Requirements
+
+**CRITICAL: Before ANY git commit in this Unity project:**
+
+1. **Check Unity console for compilation errors** - Use the MCP `read_console` tool filtered by 'Error' type
+2. **Never commit with compiler errors** - If any CS#### errors exist, fix them before committing
+3. **Wait for recompilation after edits** - After editing C# files, Unity must recompile. Check console is clean before proceeding
+4. **Verify script validity** - For new scripts, use `validate_script` MCP tool to check syntax
+
+This is enforced by a Claude hook that runs before git commits.
+
 ## Code Review Lessons (Common Issues to Avoid)
 
 Based on repeated Gemini code review feedback, avoid these common issues:
