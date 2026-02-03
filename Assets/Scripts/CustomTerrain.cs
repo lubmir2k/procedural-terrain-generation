@@ -1775,7 +1775,7 @@ public class CustomTerrain : MonoBehaviour
     /// Safely destroys an object, using Destroy at runtime and DestroyImmediate in editor.
     /// Required for [ExecuteInEditMode] scripts that may run in both contexts.
     /// </summary>
-    void SafeDestroy(Object obj)
+    void SafeDestroy(UnityEngine.Object obj)
     {
         if (obj == null) return;
 
