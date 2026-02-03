@@ -51,6 +51,7 @@ public class CustomTerrain : MonoBehaviour
     public int perlinOctaves = 3;
     public float perlinPersistence = 0.5f;
     public float perlinHeightScale = 0.09f;
+    public bool useRidgedNoise = false;  // Toggle between FBM and RidgedFBM
 
     // ---------------------------
     // Multiple Perlin Noise
@@ -209,6 +210,56 @@ public class CustomTerrain : MonoBehaviour
     public int erosionSmoothAmount = 5;
     public float windDirection = 0f;  // 0-360 degrees
 
+    // ---------------------------
+    // Fog
+    // ---------------------------
+    public bool enableFog = false;
+    public FogMode fogMode = FogMode.ExponentialSquared;
+    public Color fogColor = Color.gray;
+    public float fogDensity = 0.01f;
+    public float fogStartDistance = 0f;
+    public float fogEndDistance = 300f;
+
+    // ---------------------------
+    // Clouds (Skydome)
+    // ---------------------------
+    public enum CloudMode { Plane = 0, Skydome = 1 }
+
+    [System.Serializable]
+    public class CloudData
+    {
+        public CloudMode mode = CloudMode.Plane;
+        public GameObject skydomeMesh;   // GeoSphere mesh for skydome mode
+        public Material cloudMaterial;   // Animated cloud shader material
+        public float cloudHeight = 200f; // Height above terrain (plane) or dome center
+        public float cloudScale = 10f;   // Scale multiplier
+    }
+
+    public CloudData cloudData = new CloudData();
+    private GameObject _cloudInstance;
+
+    // ---------------------------
+    // Rain
+    // ---------------------------
+    [System.Serializable]
+    public class RainData
+    {
+        public int maxParticles = 3000;
+        public float emissionRate = 500f;
+        public float particleLifetime = 5f;
+        public float startSpeed = 25f;
+        public Vector2 startSize = new Vector2(0.01f, 0.1f);
+        public Color rainColor = new Color(0.7f, 0.7f, 0.9f, 0.5f);
+        public float gravityModifier = 1f;
+        public bool enableCollision = true;
+        public bool enableSplashes = true;
+        public Material rainMaterial;
+        public Material splashMaterial;
+    }
+
+    public RainData rainData = new RainData();
+    private GameObject _rainInstance;
+
     // Vegetation placement constants
     private const float PositionRandomOffset = 5.0f;
     private const float RaycastHeightOffset = 10f;
@@ -299,6 +350,23 @@ public class CustomTerrain : MonoBehaviour
 
         // Clear all detail layers (grass, rocks, etc.)
         terrainData.detailPrototypes = Array.Empty<DetailPrototype>();
+
+        // Clear splatmaps (reset to first layer only)
+        int alphamapRes = terrainData.alphamapResolution;
+        int numLayers = terrainData.alphamapLayers;
+        if (numLayers > 0)
+        {
+            float[,,] alphaMap = new float[alphamapRes, alphamapRes, numLayers];
+            // Set first layer to 1.0, all others remain 0.0
+            for (int y = 0; y < alphamapRes; y++)
+            {
+                for (int x = 0; x < alphamapRes; x++)
+                {
+                    alphaMap[y, x, 0] = 1f;
+                }
+            }
+            terrainData.SetAlphamaps(0, 0, alphaMap);
+        }
     }
 
     public void LoadTexture()
@@ -397,13 +465,16 @@ public class CustomTerrain : MonoBehaviour
         {
             for (int z = 0; z < terrainData.heightmapResolution; z++)
             {
-                // Use Fractal Brownian Motion for more natural terrain
-                // Offset is added BEFORE scaling to avoid cubic artifacts
-                heightMap[x, z] += Utils.FBM(
-                    (x + perlinOffsetX) * perlinXScale,
-                    (z + perlinOffsetY) * perlinYScale,
-                    perlinOctaves,
-                    perlinPersistence) * perlinHeightScale;
+                // Calculate scaled position with offset
+                float xPos = (x + perlinOffsetX) * perlinXScale;
+                float zPos = (z + perlinOffsetY) * perlinYScale;
+
+                // Use either standard FBM or RidgedFBM based on toggle
+                float noiseValue = useRidgedNoise
+                    ? Utils.RidgedFBM(xPos, zPos, perlinOctaves, perlinPersistence)
+                    : Utils.FBM(xPos, zPos, perlinOctaves, perlinPersistence);
+
+                heightMap[x, z] += noiseValue * perlinHeightScale;
             }
         }
 
@@ -1694,6 +1765,288 @@ public class CustomTerrain : MonoBehaviour
         }
 
         terrainData.SetHeights(0, 0, heightMap);
+    }
+
+    // ---------------------------
+    // Helper Methods
+    // ---------------------------
+
+    /// <summary>
+    /// Safely destroys an object, using Destroy at runtime and DestroyImmediate in editor.
+    /// Required for [ExecuteInEditMode] scripts that may run in both contexts.
+    /// </summary>
+    void SafeDestroy(Object obj)
+    {
+        if (obj == null) return;
+
+        if (Application.isPlaying)
+            Destroy(obj);
+        else
+            DestroyImmediate(obj);
+    }
+
+    // ---------------------------
+    // Fog Methods
+    // ---------------------------
+    public void ApplyFog()
+    {
+        RenderSettings.fog = enableFog;
+        RenderSettings.fogMode = fogMode;
+        RenderSettings.fogColor = fogColor;
+        RenderSettings.fogDensity = fogDensity;
+        RenderSettings.fogStartDistance = fogStartDistance;
+        RenderSettings.fogEndDistance = fogEndDistance;
+    }
+
+    // ---------------------------
+    // Cloud Methods (Plane or Skydome)
+    // ---------------------------
+    public void GenerateClouds()
+    {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        // Remove existing clouds first
+        RemoveClouds();
+
+        if (cloudData.cloudMaterial == null)
+        {
+            Debug.LogWarning("Cloud material is not assigned.", this);
+            return;
+        }
+
+        if (cloudData.mode == CloudMode.Skydome)
+        {
+            GenerateSkydome();
+        }
+        else
+        {
+            GeneratePlane();
+        }
+    }
+
+    void GeneratePlane()
+    {
+        // Create a simple plane (2 triangles - very performant)
+        _cloudInstance = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        _cloudInstance.name = "CloudPlane";
+
+        // Remove collider (not needed for visual-only clouds)
+        Collider col = _cloudInstance.GetComponent<Collider>();
+        SafeDestroy(col);
+
+        // Position centered over terrain at specified height
+        Vector3 terrainCenter = transform.position + new Vector3(
+            terrainData.size.x / 2f,
+            cloudData.cloudHeight,
+            terrainData.size.z / 2f
+        );
+        _cloudInstance.transform.position = terrainCenter;
+
+        // Scale to cover terrain (plane is 10x10 by default, so divide by 10)
+        float scaleX = (terrainData.size.x / 10f) * cloudData.cloudScale;
+        float scaleZ = (terrainData.size.z / 10f) * cloudData.cloudScale;
+        _cloudInstance.transform.localScale = new Vector3(scaleX, 1f, scaleZ);
+
+        // Apply cloud material
+        ApplyCloudMaterial(_cloudInstance);
+    }
+
+    void GenerateSkydome()
+    {
+        if (cloudData.skydomeMesh == null)
+        {
+            Debug.LogWarning("Skydome mesh (GeoSphere) is not assigned. Using default sphere.", this);
+            _cloudInstance = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            _cloudInstance.name = "Skydome";
+        }
+        else
+        {
+            _cloudInstance = Instantiate(cloudData.skydomeMesh);
+            _cloudInstance.name = "Skydome";
+        }
+
+        // Remove collider
+        Collider col = _cloudInstance.GetComponent<Collider>();
+        SafeDestroy(col);
+
+        // Position centered over terrain
+        Vector3 terrainCenter = transform.position + new Vector3(
+            terrainData.size.x / 2f,
+            cloudData.cloudHeight,
+            terrainData.size.z / 2f
+        );
+        _cloudInstance.transform.position = terrainCenter;
+
+        // Scale the skydome - flip Y to invert normals so inside is visible
+        // GeoSphere mesh is ~2000 units diameter, so cloudScale 1-5 gives 2000-10000 units
+        float scale = cloudData.cloudScale;
+        _cloudInstance.transform.localScale = new Vector3(scale, -scale, scale);
+
+        // Apply cloud material
+        ApplyCloudMaterial(_cloudInstance);
+    }
+
+    void ApplyCloudMaterial(GameObject obj)
+    {
+        Renderer rend = obj.GetComponent<Renderer>();
+        if (rend != null)
+        {
+            rend.sharedMaterial = cloudData.cloudMaterial;
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rend.receiveShadows = false;
+        }
+    }
+
+    public void RemoveClouds()
+    {
+        SafeDestroy(_cloudInstance);
+        _cloudInstance = null;
+    }
+
+    // ---------------------------
+    // Rain Methods
+    // ---------------------------
+    public void GenerateRain()
+    {
+        // Remove existing rain first
+        RemoveRain();
+
+        // Find the main camera to attach rain to
+        Camera mainCam = Camera.main;
+        if (mainCam == null)
+        {
+            Debug.LogWarning("No Main Camera found. Rain particle system will be created at terrain position.", this);
+        }
+
+        // Create rain particle system
+        _rainInstance = new GameObject("RainParticleSystem");
+
+        if (mainCam != null)
+        {
+            _rainInstance.transform.parent = mainCam.transform;
+            _rainInstance.transform.localPosition = new Vector3(0, 20f, 0);
+        }
+        else
+        {
+            _rainInstance.transform.position = transform.position + Vector3.up * 100f;
+        }
+
+        // Add particle system component
+        ParticleSystem ps = _rainInstance.AddComponent<ParticleSystem>();
+
+        // Main module
+        var main = ps.main;
+        main.maxParticles = rainData.maxParticles;
+        main.startLifetime = rainData.particleLifetime;
+        main.startSpeed = rainData.startSpeed;
+        main.startSize = new ParticleSystem.MinMaxCurve(rainData.startSize.x, rainData.startSize.y);
+        main.startColor = rainData.rainColor;
+        main.gravityModifier = rainData.gravityModifier;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.playOnAwake = true;
+        main.loop = true;
+
+        // Emission module
+        var emission = ps.emission;
+        emission.rateOverTime = rainData.emissionRate;
+
+        // Shape module - box shape above the camera
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Box;
+        shape.scale = new Vector3(50f, 1f, 50f);
+
+        // Renderer module - stretched billboard for rain streaks
+        var renderer = _rainInstance.GetComponent<ParticleSystemRenderer>();
+        renderer.renderMode = ParticleSystemRenderMode.Stretch;
+        renderer.velocityScale = 0.1f;
+        renderer.lengthScale = 3f;
+
+        if (rainData.rainMaterial != null)
+        {
+            renderer.material = rainData.rainMaterial;
+        }
+        else
+        {
+            Debug.LogWarning("Rain Material is not assigned. Aborting rain generation.", this);
+            RemoveRain();
+            return;
+        }
+
+        // Collision module
+        if (rainData.enableCollision)
+        {
+            var collision = ps.collision;
+            collision.enabled = true;
+            collision.type = ParticleSystemCollisionType.World;
+            collision.mode = ParticleSystemCollisionMode.Collision3D;
+            collision.bounce = 0f;
+            collision.lifetimeLoss = 1f;
+            collision.sendCollisionMessages = rainData.enableSplashes;
+        }
+
+        // Sub-emitter for splashes
+        if (rainData.enableSplashes && rainData.enableCollision)
+        {
+            // Create splash sub-emitter
+            GameObject splashGO = new GameObject("SplashSubEmitter");
+            splashGO.transform.parent = _rainInstance.transform;
+            splashGO.transform.localPosition = Vector3.zero;
+
+            ParticleSystem splashPS = splashGO.AddComponent<ParticleSystem>();
+
+            // Splash main module
+            var splashMain = splashPS.main;
+            splashMain.maxParticles = 1000;
+            splashMain.startLifetime = 0.2f;
+            splashMain.startSpeed = new ParticleSystem.MinMaxCurve(1f, 3f);
+            splashMain.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.15f);
+            splashMain.startColor = new Color(0.8f, 0.8f, 1f, 0.6f);
+            splashMain.gravityModifier = 0.5f;
+            splashMain.simulationSpace = ParticleSystemSimulationSpace.World;
+            splashMain.playOnAwake = false;
+            splashMain.loop = false;
+
+            // Splash emission - controlled by sub-emitter
+            var splashEmission = splashPS.emission;
+            splashEmission.rateOverTime = 0;
+
+            // Splash shape - hemisphere for radial splash
+            var splashShape = splashPS.shape;
+            splashShape.shapeType = ParticleSystemShapeType.Hemisphere;
+            splashShape.radius = 0.1f;
+
+            // Splash renderer
+            var splashRenderer = splashGO.GetComponent<ParticleSystemRenderer>();
+            splashRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+
+            if (rainData.splashMaterial != null)
+            {
+                splashRenderer.material = rainData.splashMaterial;
+            }
+            else
+            {
+                Debug.LogWarning("Splash Material is not assigned. Splashes may not render correctly.", this);
+            }
+
+            // Add as sub-emitter
+            var subEmitters = ps.subEmitters;
+            subEmitters.enabled = true;
+            subEmitters.AddSubEmitter(splashPS, ParticleSystemSubEmitterType.Collision,
+                ParticleSystemSubEmitterProperties.InheritNothing);
+        }
+
+        // Start playing
+        ps.Play();
+    }
+
+    public void RemoveRain()
+    {
+        SafeDestroy(_rainInstance);
+        _rainInstance = null;
     }
 
 #if UNITY_EDITOR

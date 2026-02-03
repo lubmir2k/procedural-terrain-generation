@@ -35,6 +35,7 @@ public class CustomTerrainEditor : Editor
     SerializedProperty perlinOctaves;
     SerializedProperty perlinPersistence;
     SerializedProperty perlinHeightScale;
+    SerializedProperty useRidgedNoise;
     bool showPerlin = false;
 
     // ---------------------------
@@ -117,6 +118,45 @@ public class CustomTerrainEditor : Editor
     bool showErosion = false;
 
     // ---------------------------
+    // Fog
+    // ---------------------------
+    SerializedProperty enableFog;
+    SerializedProperty fogMode;
+    SerializedProperty fogColor;
+    SerializedProperty fogDensity;
+    SerializedProperty fogStartDistance;
+    SerializedProperty fogEndDistance;
+    bool showFog = false;
+
+    // ---------------------------
+    // Clouds
+    // ---------------------------
+    SerializedProperty cloudData;
+    SerializedProperty cloudMode;
+    SerializedProperty cloudMat;
+    SerializedProperty skydomeMesh;
+    SerializedProperty cloudHeight;
+    SerializedProperty cloudScale;
+    bool showClouds = false;
+
+    // ---------------------------
+    // Rain
+    // ---------------------------
+    SerializedProperty rainData;
+    SerializedProperty rainMaxParticles;
+    SerializedProperty rainEmissionRate;
+    SerializedProperty rainParticleLifetime;
+    SerializedProperty rainStartSpeed;
+    SerializedProperty rainStartSize;
+    SerializedProperty rainColor;
+    SerializedProperty rainGravityModifier;
+    SerializedProperty rainEnableCollision;
+    SerializedProperty rainEnableSplashes;
+    SerializedProperty rainMaterial;
+    SerializedProperty rainSplashMaterial;
+    bool showRain = false;
+
+    // ---------------------------
     // Scroll View
     // ---------------------------
     Vector2 scrollPos;
@@ -136,6 +176,7 @@ public class CustomTerrainEditor : Editor
         perlinOctaves = serializedObject.FindProperty("perlinOctaves");
         perlinPersistence = serializedObject.FindProperty("perlinPersistence");
         perlinHeightScale = serializedObject.FindProperty("perlinHeightScale");
+        useRidgedNoise = serializedObject.FindProperty("useRidgedNoise");
         perlinParameterTable = new GUITableState("perlinParameterTable");
         perlinParameters = serializedObject.FindProperty("perlinParameters");
         voronoiFalloff = serializedObject.FindProperty("voronoiFalloff");
@@ -169,6 +210,30 @@ public class CustomTerrainEditor : Editor
         springsPerRiver = serializedObject.FindProperty("springsPerRiver");
         erosionSmoothAmount = serializedObject.FindProperty("erosionSmoothAmount");
         windDirection = serializedObject.FindProperty("windDirection");
+        enableFog = serializedObject.FindProperty("enableFog");
+        fogMode = serializedObject.FindProperty("fogMode");
+        fogColor = serializedObject.FindProperty("fogColor");
+        fogDensity = serializedObject.FindProperty("fogDensity");
+        fogStartDistance = serializedObject.FindProperty("fogStartDistance");
+        fogEndDistance = serializedObject.FindProperty("fogEndDistance");
+        cloudData = serializedObject.FindProperty("cloudData");
+        cloudMode = cloudData.FindPropertyRelative("mode");
+        cloudMat = cloudData.FindPropertyRelative("cloudMaterial");
+        skydomeMesh = cloudData.FindPropertyRelative("skydomeMesh");
+        cloudHeight = cloudData.FindPropertyRelative("cloudHeight");
+        cloudScale = cloudData.FindPropertyRelative("cloudScale");
+        rainData = serializedObject.FindProperty("rainData");
+        rainMaxParticles = rainData.FindPropertyRelative("maxParticles");
+        rainEmissionRate = rainData.FindPropertyRelative("emissionRate");
+        rainParticleLifetime = rainData.FindPropertyRelative("particleLifetime");
+        rainStartSpeed = rainData.FindPropertyRelative("startSpeed");
+        rainStartSize = rainData.FindPropertyRelative("startSize");
+        rainColor = rainData.FindPropertyRelative("rainColor");
+        rainGravityModifier = rainData.FindPropertyRelative("gravityModifier");
+        rainEnableCollision = rainData.FindPropertyRelative("enableCollision");
+        rainEnableSplashes = rainData.FindPropertyRelative("enableSplashes");
+        rainMaterial = rainData.FindPropertyRelative("rainMaterial");
+        rainSplashMaterial = rainData.FindPropertyRelative("splashMaterial");
     }
 
     public override void OnInspectorGUI()
@@ -265,6 +330,10 @@ public class CustomTerrainEditor : Editor
             EditorGUILayout.IntSlider(perlinOctaves, 1, 10, new GUIContent("Octaves"));
             EditorGUILayout.Slider(perlinPersistence, 0.1f, 1f, new GUIContent("Persistence"));
             EditorGUILayout.Slider(perlinHeightScale, 0f, 1f, new GUIContent("Height Scale"));
+
+            // Toggle for Ridged Multifractal noise (sharp ridges vs smooth hills)
+            EditorGUILayout.PropertyField(useRidgedNoise, new GUIContent("Use Ridged Noise",
+                "Use Ridged Multifractal instead of standard FBM. Creates sharp ridges like eroded mountains."));
 
             if (GUILayout.Button("Generate Perlin"))
             {
@@ -517,6 +586,121 @@ public class CustomTerrainEditor : Editor
             {
                 terrain.Erode();
             }
+        }
+
+        // ---------------------------
+        // Fog Section
+        // ---------------------------
+        showFog = EditorGUILayout.Foldout(showFog, "Fog");
+        if (showFog)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Fog Settings", EditorStyles.boldLabel);
+
+            EditorGUILayout.PropertyField(enableFog, new GUIContent("Enable Fog"));
+            EditorGUILayout.PropertyField(fogMode, new GUIContent("Fog Mode"));
+            EditorGUILayout.PropertyField(fogColor, new GUIContent("Fog Color"));
+
+            // Show density for Exponential modes
+            if (fogMode.enumValueIndex != (int)FogMode.Linear)
+            {
+                EditorGUILayout.Slider(fogDensity, 0f, 0.1f, new GUIContent("Fog Density"));
+            }
+
+            // Show start/end distance for Linear mode
+            if (fogMode.enumValueIndex == (int)FogMode.Linear)
+            {
+                EditorGUILayout.PropertyField(fogStartDistance, new GUIContent("Start Distance"));
+                EditorGUILayout.PropertyField(fogEndDistance, new GUIContent("End Distance"));
+            }
+
+            if (GUILayout.Button("Apply Fog"))
+            {
+                terrain.ApplyFog();
+            }
+        }
+
+        // ---------------------------
+        // Clouds Section
+        // ---------------------------
+        showClouds = EditorGUILayout.Foldout(showClouds, "Clouds");
+        if (showClouds)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            // Display CloudData properties (cached in OnEnable for performance)
+            EditorGUILayout.PropertyField(cloudMode, new GUIContent("Cloud Mode"));
+
+            bool isSkydome = cloudMode.enumValueIndex == (int)CustomTerrain.CloudMode.Skydome;
+            if (isSkydome)
+            {
+                GUILayout.Label("Skydome Settings", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("Uses a GeoSphere mesh with animated cloud shader. Avoids UV pinch points at poles.", MessageType.Info);
+                EditorGUILayout.PropertyField(skydomeMesh, new GUIContent("Skydome Mesh", "Assign GeoSphere.fbx for best results"));
+            }
+            else
+            {
+                GUILayout.Label("Cloud Plane Settings", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("Uses a simple plane with animated cloud shader. Very performant (2 triangles).", MessageType.Info);
+            }
+
+            EditorGUILayout.PropertyField(cloudMat, new GUIContent("Cloud Material", "Assign Clouds.mat"));
+            EditorGUILayout.Slider(cloudHeight, 50f, 500f, new GUIContent("Cloud Height"));
+
+            // Different scale ranges for each mode
+            if (isSkydome)
+            {
+                EditorGUILayout.Slider(cloudScale, 1f, 5f, new GUIContent("Scale", "GeoSphere is ~2000 units, scale 2 = 4000 unit diameter"));
+            }
+            else
+            {
+                EditorGUILayout.Slider(cloudScale, 5f, 20f, new GUIContent("Scale Multiplier", "Increase to hide plane edges at horizon"));
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Generate Clouds"))
+            {
+                terrain.GenerateClouds();
+            }
+            if (GUILayout.Button("Remove Clouds"))
+            {
+                terrain.RemoveClouds();
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        // ---------------------------
+        // Rain Section
+        // ---------------------------
+        showRain = EditorGUILayout.Foldout(showRain, "Rain");
+        if (showRain)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Rain Particle System", EditorStyles.boldLabel);
+
+            // Display all RainData properties (cached in OnEnable for performance)
+            EditorGUILayout.IntSlider(rainMaxParticles, 500, 10000, new GUIContent("Max Particles"));
+            EditorGUILayout.Slider(rainEmissionRate, 50f, 2000f, new GUIContent("Emission Rate"));
+            EditorGUILayout.Slider(rainParticleLifetime, 1f, 10f, new GUIContent("Particle Lifetime"));
+            EditorGUILayout.Slider(rainStartSpeed, 5f, 50f, new GUIContent("Start Speed"));
+            EditorGUILayout.PropertyField(rainStartSize, new GUIContent("Start Size (Min/Max)"));
+            EditorGUILayout.PropertyField(rainColor, new GUIContent("Rain Color"));
+            EditorGUILayout.Slider(rainGravityModifier, 0f, 3f, new GUIContent("Gravity Modifier"));
+            EditorGUILayout.PropertyField(rainEnableCollision, new GUIContent("Enable Collision"));
+            EditorGUILayout.PropertyField(rainEnableSplashes, new GUIContent("Enable Splashes"));
+            EditorGUILayout.PropertyField(rainMaterial, new GUIContent("Rain Material"));
+            EditorGUILayout.PropertyField(rainSplashMaterial, new GUIContent("Splash Material"));
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Generate Rain"))
+            {
+                terrain.GenerateRain();
+            }
+            if (GUILayout.Button("Remove Rain"))
+            {
+                terrain.RemoveRain();
+            }
+            EditorGUILayout.EndHorizontal();
         }
 
         // ---------------------------
