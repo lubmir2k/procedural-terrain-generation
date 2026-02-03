@@ -1485,7 +1485,7 @@ public class CustomTerrain : MonoBehaviour
                     {
                         float currentHeight = heightMap[x, y];
                         float transfer = currentHeight * erosionAmount;
-                        result[x, y] -= transfer;
+                        result[x, y] = Mathf.Max(0f, result[x, y] - transfer);
                         result[nx, ny] = Mathf.Min(1f, result[nx, ny] + transfer);
                     }
                 }
