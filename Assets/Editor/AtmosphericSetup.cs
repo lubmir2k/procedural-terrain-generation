@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.Rendering;
+using System.Linq;
 
 /// <summary>
 /// One-click setup for atmospheric effects as described in the course lecture.
@@ -8,8 +9,11 @@ using UnityEngine.Rendering;
 /// </summary>
 public static class AtmosphericSetup
 {
-    // The fog/sky color that blends everything together (light grey/white)
+    // Default atmospheric settings
     private static readonly Color SkyFogColor = new Color(0.75f, 0.78f, 0.82f, 1f);
+    private const float DefaultFogDensity = 0.003f;
+    private const float DefaultCloudHeight = 150f;
+    private const float DefaultCloudScale = 15f;
 
     [MenuItem("Tools/Terrain Test/Setup Atmospheric Scene (Lecture Style)")]
     public static void SetupAtmosphericScene()
@@ -38,7 +42,7 @@ public static class AtmosphericSetup
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogColor = SkyFogColor;
-        RenderSettings.fogDensity = 0.003f;
+        RenderSettings.fogDensity = DefaultFogDensity;
 
         // Also update CustomTerrain if present
         CustomTerrain terrain = Object.FindFirstObjectByType<CustomTerrain>();
@@ -47,11 +51,11 @@ public static class AtmosphericSetup
             terrain.enableFog = true;
             terrain.fogMode = FogMode.ExponentialSquared;
             terrain.fogColor = SkyFogColor;
-            terrain.fogDensity = 0.003f;
+            terrain.fogDensity = DefaultFogDensity;
             EditorUtility.SetDirty(terrain);
         }
 
-        Debug.Log("Fog setup complete: ExponentialSquared, density 0.003");
+        Debug.Log($"Fog setup complete: ExponentialSquared, density {DefaultFogDensity}");
     }
 
     [MenuItem("Tools/Terrain Test/Setup Camera Background")]
@@ -84,17 +88,11 @@ public static class AtmosphericSetup
         // Check if cloud material is assigned
         if (terrain.cloudData.cloudMaterial == null)
         {
-            // Try to find and assign Clouds.mat
-            string[] guids = AssetDatabase.FindAssets("Clouds t:Material");
-            var matchingPaths = new System.Collections.Generic.List<string>();
-            foreach (string guid in guids)
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                if (System.IO.Path.GetFileName(path) == "Clouds.mat")
-                {
-                    matchingPaths.Add(path);
-                }
-            }
+            // Try to find and assign Clouds.mat using LINQ
+            var matchingPaths = AssetDatabase.FindAssets("Clouds t:Material")
+                .Select(guid => AssetDatabase.GUIDToAssetPath(guid))
+                .Where(path => System.IO.Path.GetFileName(path) == "Clouds.mat")
+                .ToList();
 
             if (matchingPaths.Count == 1)
             {
@@ -114,8 +112,8 @@ public static class AtmosphericSetup
         }
 
         // Set cloud parameters for good coverage
-        terrain.cloudData.cloudHeight = 150f;
-        terrain.cloudData.cloudScale = 15f;
+        terrain.cloudData.cloudHeight = DefaultCloudHeight;
+        terrain.cloudData.cloudScale = DefaultCloudScale;
 
         // Generate the clouds
         terrain.GenerateClouds();
