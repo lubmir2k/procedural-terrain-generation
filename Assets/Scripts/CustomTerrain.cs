@@ -2062,17 +2062,24 @@ public class CustomTerrain : MonoBehaviour
         }
     }
 
+    // Shadow projection height above terrain
+    private const float ShadowProjectionHeight = 10f;
+
     void CreateCloudShadow(Transform cloudParent, int index)
     {
         GameObject shadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
         shadow.name = $"CloudShadow_{index}";
         shadow.transform.parent = cloudParent;
-        shadow.transform.localPosition = new Vector3(0, -cloudParent.position.y + 10f, 0);
+
+        // Calculate local Y position accounting for parent scale
+        // Formula: localY = (desiredWorldY - parentWorldY) / parentScaleY
+        float localY = (ShadowProjectionHeight - cloudParent.position.y) / cloudParent.localScale.y;
+        shadow.transform.localPosition = new Vector3(0, localY, 0);
         shadow.transform.localRotation = Quaternion.Euler(90, 0, 0);
 
-        // Scale shadow to cloud size (uses average of scale range)
-        float avgScale = (particleCloudData.cloudScaleMin.x + particleCloudData.cloudScaleMax.x) / 2f;
-        float shadowSize = avgScale * particleCloudData.cloudParticleSize;
+        // Scale shadow to actual cloud size (use cloud's actual scale, not min/max average)
+        float avgCloudScale = (cloudParent.localScale.x + cloudParent.localScale.z) * 0.5f;
+        float shadowSize = avgCloudScale * particleCloudData.cloudParticleSize;
         shadow.transform.localScale = new Vector3(shadowSize, shadowSize, shadowSize);
 
         // Remove collider
