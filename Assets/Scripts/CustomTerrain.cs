@@ -1962,11 +1962,9 @@ public class CustomTerrain : MonoBehaviour
         }
         else
         {
-            // Create a basic material for rain
-            Material rainMat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
-            rainMat.SetFloat("_Surface", 1); // Transparent
-            rainMat.color = rainData.rainColor;
-            renderer.material = rainMat;
+            Debug.LogWarning("Rain Material is not assigned. Aborting rain generation.", this);
+            RemoveRain();
+            return;
         }
 
         // Collision module
@@ -2022,10 +2020,7 @@ public class CustomTerrain : MonoBehaviour
             }
             else
             {
-                Material splashMat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
-                splashMat.SetFloat("_Surface", 1); // Transparent
-                splashMat.color = new Color(0.8f, 0.8f, 1f, 0.6f);
-                splashRenderer.material = splashMat;
+                Debug.LogWarning("Splash Material is not assigned. Splashes may not render correctly.", this);
             }
 
             // Add as sub-emitter
