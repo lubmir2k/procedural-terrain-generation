@@ -1768,6 +1768,24 @@ public class CustomTerrain : MonoBehaviour
     }
 
     // ---------------------------
+    // Helper Methods
+    // ---------------------------
+
+    /// <summary>
+    /// Safely destroys an object, using Destroy at runtime and DestroyImmediate in editor.
+    /// Required for [ExecuteInEditMode] scripts that may run in both contexts.
+    /// </summary>
+    void SafeDestroy(Object obj)
+    {
+        if (obj == null) return;
+
+        if (Application.isPlaying)
+            Destroy(obj);
+        else
+            DestroyImmediate(obj);
+    }
+
+    // ---------------------------
     // Fog Methods
     // ---------------------------
     public void ApplyFog()
@@ -1818,10 +1836,7 @@ public class CustomTerrain : MonoBehaviour
 
         // Remove collider (not needed for visual-only clouds)
         Collider col = _cloudInstance.GetComponent<Collider>();
-        if (col != null)
-        {
-            DestroyImmediate(col);
-        }
+        SafeDestroy(col);
 
         // Position centered over terrain at specified height
         Vector3 terrainCenter = transform.position + new Vector3(
@@ -1856,10 +1871,7 @@ public class CustomTerrain : MonoBehaviour
 
         // Remove collider
         Collider col = _cloudInstance.GetComponent<Collider>();
-        if (col != null)
-        {
-            DestroyImmediate(col);
-        }
+        SafeDestroy(col);
 
         // Position centered over terrain
         Vector3 terrainCenter = transform.position + new Vector3(
@@ -1891,11 +1903,8 @@ public class CustomTerrain : MonoBehaviour
 
     public void RemoveClouds()
     {
-        if (_cloudInstance != null)
-        {
-            DestroyImmediate(_cloudInstance);
-            _cloudInstance = null;
-        }
+        SafeDestroy(_cloudInstance);
+        _cloudInstance = null;
     }
 
     // ---------------------------
@@ -2036,11 +2045,8 @@ public class CustomTerrain : MonoBehaviour
 
     public void RemoveRain()
     {
-        if (_rainInstance != null)
-        {
-            DestroyImmediate(_rainInstance);
-            _rainInstance = null;
-        }
+        SafeDestroy(_rainInstance);
+        _rainInstance = null;
     }
 
 #if UNITY_EDITOR

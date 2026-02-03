@@ -86,15 +86,24 @@ public static class AtmosphericSetup
         {
             // Try to find and assign Clouds.mat
             string[] guids = AssetDatabase.FindAssets("Clouds t:Material");
+            var matchingPaths = new System.Collections.Generic.List<string>();
             foreach (string guid in guids)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 if (path.EndsWith("Clouds.mat"))
                 {
-                    terrain.cloudData.cloudMaterial = AssetDatabase.LoadAssetAtPath<Material>(path);
-                    Debug.Log("Auto-assigned Clouds.mat material.");
-                    break;
+                    matchingPaths.Add(path);
                 }
+            }
+
+            if (matchingPaths.Count == 1)
+            {
+                terrain.cloudData.cloudMaterial = AssetDatabase.LoadAssetAtPath<Material>(matchingPaths[0]);
+                Debug.Log($"Auto-assigned {matchingPaths[0]} material.");
+            }
+            else if (matchingPaths.Count > 1)
+            {
+                Debug.LogWarning($"Multiple 'Clouds.mat' materials found. Please assign one manually to CustomTerrain. Found at: {string.Join(", ", matchingPaths)}");
             }
         }
 
