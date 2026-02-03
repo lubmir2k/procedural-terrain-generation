@@ -1943,10 +1943,10 @@ public class CustomTerrain : MonoBehaviour
         }
 
         // Find or create CloudManager
-        GameObject cloudManager = GameObject.Find("CloudManager");
+        GameObject cloudManager = GameObject.Find(CloudManagerName);
         if (cloudManager == null)
         {
-            cloudManager = new GameObject("CloudManager");
+            cloudManager = new GameObject(CloudManagerName);
             cloudManager.AddComponent<CloudManager>();
             cloudManager.transform.position = transform.position + new Vector3(
                 terrainData.size.x / 2f,
@@ -1967,8 +1967,8 @@ public class CustomTerrain : MonoBehaviour
             );
         }
 
-        // Remove existing cloud objects with "Cloud" tag
-        GameObject[] existingClouds = GameObject.FindGameObjectsWithTag("Cloud");
+        // Remove existing cloud objects with Cloud tag
+        GameObject[] existingClouds = GameObject.FindGameObjectsWithTag(CloudTag);
         foreach (GameObject cloud in existingClouds)
         {
             DestroyImmediate(cloud);
@@ -1987,7 +1987,7 @@ public class CustomTerrain : MonoBehaviour
     {
         // Create cloud container
         GameObject cloud = new GameObject($"Cloud_{index}");
-        cloud.tag = "Cloud";
+        cloud.tag = CloudTag;
         cloud.transform.parent = parent.transform;
         cloud.transform.localPosition = new Vector3(
             UnityEngine.Random.Range(-terrainData.size.x / 2f, terrainData.size.x / 2f),
@@ -2065,6 +2065,10 @@ public class CustomTerrain : MonoBehaviour
     // Shadow projection height above terrain
     private const float ShadowProjectionHeight = 10f;
 
+    // String constants for cloud system
+    private const string CloudManagerName = "CloudManager";
+    private const string CloudTag = "Cloud";
+
     void CreateCloudShadow(Transform cloudParent, int index)
     {
         GameObject shadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -2073,8 +2077,16 @@ public class CustomTerrain : MonoBehaviour
 
         // Calculate local Y position accounting for parent scale
         // Formula: localY = (desiredWorldY - parentWorldY) / parentScaleY
-        float localY = (ShadowProjectionHeight - cloudParent.position.y) / cloudParent.localScale.y;
-        shadow.transform.localPosition = new Vector3(0, localY, 0);
+        if (Mathf.Approximately(cloudParent.localScale.y, 0f))
+        {
+            Debug.LogWarning($"Cloud '{cloudParent.name}' has zero Y-scale, shadow cannot be projected correctly. Placing at parent origin.", this);
+            shadow.transform.localPosition = Vector3.zero;
+        }
+        else
+        {
+            float localY = (ShadowProjectionHeight - cloudParent.position.y) / cloudParent.localScale.y;
+            shadow.transform.localPosition = new Vector3(0, localY, 0);
+        }
         shadow.transform.localRotation = Quaternion.Euler(90, 0, 0);
 
         // Scale shadow to actual cloud size (use cloud's actual scale, not min/max average)
@@ -2097,13 +2109,17 @@ public class CustomTerrain : MonoBehaviour
     public void RemoveParticleClouds()
     {
         // Remove all clouds with Cloud tag
-        GameObject[] clouds = GameObject.FindGameObjectsWithTag("Cloud");
+        GameObject[] clouds = GameObject.FindGameObjectsWithTag(CloudTag);
         foreach (GameObject cloud in clouds)
         {
             DestroyImmediate(cloud);
         }
 
-        // Remove cloud manager
+        // Remove cloud manager - find by name if cache is null (handles scene reload)
+        if (_cloudManager == null)
+        {
+            _cloudManager = GameObject.Find(CloudManagerName);
+        }
         SafeDestroy(_cloudManager);
         _cloudManager = null;
 
