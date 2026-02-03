@@ -99,6 +99,37 @@ When importing heightmap images (PNG, RAW, etc.) for use with `LoadTexture()`, c
 - If wrong mip level is sampled, terrain gets incorrect smoothed heights
 - Mipmaps add ~33% memory with zero benefit for data textures
 
+## Real-World Elevation Data Sources
+
+For importing real-world terrain, these datasets provide elevation/heightmap data:
+
+### Earth
+
+| Source | Organization | Resolution | Coverage | URL |
+|--------|--------------|------------|----------|-----|
+| **SRTM** (Shuttle Radar Topography Mission) | NASA | 30m (SRTM1) / 90m (SRTM3) | 60°N to 56°S | earthexplorer.usgs.gov |
+| **ASTER GDEM** | NASA/METI | 30m | 83°N to 83°S | earthdata.nasa.gov |
+| **ALOS World 3D** | JAXA | 30m | Global | eorc.jaxa.jp |
+
+### Other Planetary Bodies
+
+| Body | Mission/Instrument | Organization | Resolution | URL |
+|------|-------------------|--------------|------------|-----|
+| **Mars** | MOLA (Mars Orbiter Laser Altimeter) | NASA | ~463m/pixel | pds.nasa.gov |
+| **Moon** | LOLA (Lunar Orbiter Laser Altimeter) | NASA | ~100m | pds.nasa.gov |
+| **Venus** | Magellan Radar | NASA | ~100m | pds.nasa.gov |
+| **Mercury** | MESSENGER Laser Altimeter | NASA | ~500m | pds.nasa.gov |
+| **Ceres/Vesta** | Dawn Mission | NASA | varies | pds.nasa.gov |
+
+### Usage in Unity
+
+1. Download elevation data as GeoTIFF or RAW format
+2. Convert to 16-bit grayscale PNG if needed (GDAL, QGIS, or Photoshop)
+3. Import into Unity with settings from "Heightmap Texture Import Settings" above
+4. Use `LoadTexture()` or `LoadTextureAdditive()` in CustomTerrain
+
+**Note:** Real-world data often requires scaling - SRTM covers large areas (1° tiles = ~111km at equator). Use terrain `size` property to match desired world dimensions.
+
 ## Best Practices
 
 1. **Always clamp heights** - Keep values in [0,1] range after modifications
