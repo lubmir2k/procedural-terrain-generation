@@ -140,6 +140,24 @@ public class CustomTerrainEditor : Editor
     bool showClouds = false;
 
     // ---------------------------
+    // Particle Clouds
+    // ---------------------------
+    SerializedProperty particleCloudData;
+    SerializedProperty numClouds;
+    SerializedProperty particlesPerCloud;
+    SerializedProperty cloudParticleSize;
+    SerializedProperty cloudScaleMin;
+    SerializedProperty cloudScaleMax;
+    SerializedProperty particleCloudMaterial;
+    SerializedProperty particleCloudShadowMaterial;
+    SerializedProperty particleCloudColor;
+    SerializedProperty particleCloudLining;
+    SerializedProperty cloudMinSpeed;
+    SerializedProperty cloudMaxSpeed;
+    SerializedProperty cloudRange;
+    bool showParticleClouds = false;
+
+    // ---------------------------
     // Rain
     // ---------------------------
     SerializedProperty rainData;
@@ -154,6 +172,7 @@ public class CustomTerrainEditor : Editor
     SerializedProperty rainEnableSplashes;
     SerializedProperty rainMaterial;
     SerializedProperty rainSplashMaterial;
+    SerializedProperty rainWindForce;
     bool showRain = false;
 
     // ---------------------------
@@ -222,6 +241,19 @@ public class CustomTerrainEditor : Editor
         skydomeMesh = cloudData.FindPropertyRelative("skydomeMesh");
         cloudHeight = cloudData.FindPropertyRelative("cloudHeight");
         cloudScale = cloudData.FindPropertyRelative("cloudScale");
+        particleCloudData = serializedObject.FindProperty("particleCloudData");
+        numClouds = particleCloudData.FindPropertyRelative("numClouds");
+        particlesPerCloud = particleCloudData.FindPropertyRelative("particlesPerCloud");
+        cloudParticleSize = particleCloudData.FindPropertyRelative("cloudParticleSize");
+        cloudScaleMin = particleCloudData.FindPropertyRelative("cloudScaleMin");
+        cloudScaleMax = particleCloudData.FindPropertyRelative("cloudScaleMax");
+        particleCloudMaterial = particleCloudData.FindPropertyRelative("cloudMaterial");
+        particleCloudShadowMaterial = particleCloudData.FindPropertyRelative("cloudShadowMaterial");
+        particleCloudColor = particleCloudData.FindPropertyRelative("cloudColor");
+        particleCloudLining = particleCloudData.FindPropertyRelative("cloudLining");
+        cloudMinSpeed = particleCloudData.FindPropertyRelative("minSpeed");
+        cloudMaxSpeed = particleCloudData.FindPropertyRelative("maxSpeed");
+        cloudRange = particleCloudData.FindPropertyRelative("cloudRange");
         rainData = serializedObject.FindProperty("rainData");
         rainMaxParticles = rainData.FindPropertyRelative("maxParticles");
         rainEmissionRate = rainData.FindPropertyRelative("emissionRate");
@@ -234,6 +266,7 @@ public class CustomTerrainEditor : Editor
         rainEnableSplashes = rainData.FindPropertyRelative("enableSplashes");
         rainMaterial = rainData.FindPropertyRelative("rainMaterial");
         rainSplashMaterial = rainData.FindPropertyRelative("splashMaterial");
+        rainWindForce = rainData.FindPropertyRelative("windForce");
     }
 
     public override void OnInspectorGUI()
@@ -670,6 +703,41 @@ public class CustomTerrainEditor : Editor
         }
 
         // ---------------------------
+        // Particle Clouds Section (volumetric clouds using billboards)
+        // ---------------------------
+        showParticleClouds = EditorGUILayout.Foldout(showParticleClouds, "Particle Clouds");
+        if (showParticleClouds)
+        {
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label("Volumetric Cloud System", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("Creates clouds using particle billboards. More expensive than shader clouds.", MessageType.Warning);
+
+            EditorGUILayout.IntSlider(numClouds, 1, 20, new GUIContent("Number of Clouds"));
+            EditorGUILayout.IntSlider(particlesPerCloud, 10, 100, new GUIContent("Particles Per Cloud"));
+            EditorGUILayout.Slider(cloudParticleSize, 1f, 20f, new GUIContent("Particle Size"));
+            EditorGUILayout.PropertyField(cloudScaleMin, new GUIContent("Cloud Scale Min"));
+            EditorGUILayout.PropertyField(cloudScaleMax, new GUIContent("Cloud Scale Max"));
+            EditorGUILayout.PropertyField(particleCloudMaterial, new GUIContent("Cloud Material"));
+            EditorGUILayout.PropertyField(particleCloudShadowMaterial, new GUIContent("Shadow Material"));
+            EditorGUILayout.PropertyField(particleCloudColor, new GUIContent("Cloud Color"));
+            EditorGUILayout.PropertyField(particleCloudLining, new GUIContent("Lining Color"));
+            EditorGUILayout.Slider(cloudMinSpeed, 0.01f, 2f, new GUIContent("Min Speed"));
+            EditorGUILayout.Slider(cloudMaxSpeed, 0.1f, 5f, new GUIContent("Max Speed"));
+            EditorGUILayout.Slider(cloudRange, 100f, 1000f, new GUIContent("Cloud Range"));
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Generate Particle Clouds"))
+            {
+                terrain.GenerateParticleClouds();
+            }
+            if (GUILayout.Button("Remove Particle Clouds"))
+            {
+                terrain.RemoveParticleClouds();
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        // ---------------------------
         // Rain Section
         // ---------------------------
         showRain = EditorGUILayout.Foldout(showRain, "Rain");
@@ -690,6 +758,7 @@ public class CustomTerrainEditor : Editor
             EditorGUILayout.PropertyField(rainEnableSplashes, new GUIContent("Enable Splashes"));
             EditorGUILayout.PropertyField(rainMaterial, new GUIContent("Rain Material"));
             EditorGUILayout.PropertyField(rainSplashMaterial, new GUIContent("Splash Material"));
+            EditorGUILayout.PropertyField(rainWindForce, new GUIContent("Wind Force", "Applies constant force to rain particles (X, Y, Z)"));
 
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Generate Rain"))

@@ -239,6 +239,29 @@ public class CustomTerrain : MonoBehaviour
     private GameObject _cloudInstance;
 
     // ---------------------------
+    // Particle Clouds (volumetric cloud system)
+    // ---------------------------
+    [System.Serializable]
+    public class ParticleCloudData
+    {
+        public int numClouds = 1;
+        public int particlesPerCloud = 50;
+        public float cloudParticleSize = 5f;
+        public Vector3 cloudScaleMin = new Vector3(0.5f, 0.5f, 0.5f);
+        public Vector3 cloudScaleMax = new Vector3(1.5f, 1.5f, 1.5f);
+        public Material cloudMaterial;
+        public Material cloudShadowMaterial;
+        public Color cloudColor = Color.white;
+        public Color cloudLining = Color.gray;
+        public float minSpeed = 0.1f;
+        public float maxSpeed = 0.5f;
+        public float cloudRange = 500f;
+    }
+
+    public ParticleCloudData particleCloudData = new ParticleCloudData();
+    private GameObject _cloudManager;
+
+    // ---------------------------
     // Rain
     // ---------------------------
     [System.Serializable]
@@ -255,6 +278,7 @@ public class CustomTerrain : MonoBehaviour
         public bool enableSplashes = true;
         public Material rainMaterial;
         public Material splashMaterial;
+        public Vector3 windForce = new Vector3(2f, 0f, 0f);
     }
 
     public RainData rainData = new RainData();
@@ -1908,6 +1932,178 @@ public class CustomTerrain : MonoBehaviour
     }
 
     // ---------------------------
+    // Particle Cloud Methods (volumetric clouds using particle billboards)
+    // ---------------------------
+    public void GenerateParticleClouds()
+    {
+        if (terrainData == null)
+        {
+            Debug.LogError("TerrainData is not assigned.", this);
+            return;
+        }
+
+        // Find or create CloudManager
+        GameObject cloudManager = GameObject.Find("CloudManager");
+        if (cloudManager == null)
+        {
+            cloudManager = new GameObject("CloudManager");
+            cloudManager.AddComponent<CloudManager>();
+            cloudManager.transform.position = transform.position + new Vector3(
+                terrainData.size.x / 2f,
+                particleCloudData.cloudRange / 2f,
+                terrainData.size.z / 2f
+            );
+        }
+        _cloudManager = cloudManager;
+
+        // Set cloud manager area size
+        CloudManager cm = cloudManager.GetComponent<CloudManager>();
+        if (cm != null)
+        {
+            cm.cloudAreaSize = new Vector3(
+                terrainData.size.x,
+                particleCloudData.cloudRange / 4f,
+                terrainData.size.z
+            );
+        }
+
+        // Remove existing cloud objects with "Cloud" tag
+        GameObject[] existingClouds = GameObject.FindGameObjectsWithTag("Cloud");
+        foreach (GameObject cloud in existingClouds)
+        {
+            DestroyImmediate(cloud);
+        }
+
+        // Create clouds
+        for (int i = 0; i < particleCloudData.numClouds; i++)
+        {
+            CreateParticleCloud(i, cloudManager);
+        }
+
+        Debug.Log($"Generated {particleCloudData.numClouds} particle clouds.");
+    }
+
+    void CreateParticleCloud(int index, GameObject parent)
+    {
+        // Create cloud container
+        GameObject cloud = new GameObject($"Cloud_{index}");
+        cloud.tag = "Cloud";
+        cloud.transform.parent = parent.transform;
+        cloud.transform.localPosition = new Vector3(
+            UnityEngine.Random.Range(-terrainData.size.x / 2f, terrainData.size.x / 2f),
+            UnityEngine.Random.Range(0, particleCloudData.cloudRange / 4f),
+            UnityEngine.Random.Range(-terrainData.size.z / 2f, terrainData.size.z / 2f)
+        );
+
+        // Apply random scale between min/max for cloud variety
+        Vector3 cloudScale = new Vector3(
+            UnityEngine.Random.Range(particleCloudData.cloudScaleMin.x, particleCloudData.cloudScaleMax.x),
+            UnityEngine.Random.Range(particleCloudData.cloudScaleMin.y, particleCloudData.cloudScaleMax.y),
+            UnityEngine.Random.Range(particleCloudData.cloudScaleMin.z, particleCloudData.cloudScaleMax.z)
+        );
+        cloud.transform.localScale = cloudScale;
+
+        // Add Cloud component for movement
+        Cloud cloudScript = cloud.AddComponent<Cloud>();
+        cloudScript.speed = UnityEngine.Random.Range(particleCloudData.minSpeed, particleCloudData.maxSpeed);
+        cloudScript.distance = particleCloudData.cloudRange;
+
+        // Create particle billboards for this cloud
+        for (int p = 0; p < particleCloudData.particlesPerCloud; p++)
+        {
+            CreateCloudParticle(cloud.transform, p);
+        }
+
+        // Create cloud shadow
+        if (particleCloudData.cloudShadowMaterial != null)
+        {
+            CreateCloudShadow(cloud.transform, index);
+        }
+    }
+
+    void CreateCloudParticle(Transform parent, int index)
+    {
+        GameObject particle = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        particle.name = $"Particle_{index}";
+        particle.transform.parent = parent;
+
+        // Remove collider
+        Collider col = particle.GetComponent<Collider>();
+        SafeDestroy(col);
+
+        // Random position within cloud volume (base distribution, scaled by cloud's transform)
+        particle.transform.localPosition = new Vector3(
+            UnityEngine.Random.Range(-1f, 1f),
+            UnityEngine.Random.Range(-1f, 1f),
+            UnityEngine.Random.Range(-1f, 1f)
+        );
+
+        // Random rotation for variety
+        particle.transform.localRotation = Quaternion.Euler(0, UnityEngine.Random.Range(0, 360), 0);
+
+        // Set size
+        float size = particleCloudData.cloudParticleSize * UnityEngine.Random.Range(0.5f, 1.5f);
+        particle.transform.localScale = new Vector3(size, size, size);
+
+        // Apply material and color
+        Renderer rend = particle.GetComponent<Renderer>();
+        if (rend != null && particleCloudData.cloudMaterial != null)
+        {
+            rend.sharedMaterial = particleCloudData.cloudMaterial;
+            // Blend between cloud color and lining
+            MaterialPropertyBlock props = new MaterialPropertyBlock();
+            Color particleColor = Color.Lerp(
+                particleCloudData.cloudColor,
+                particleCloudData.cloudLining,
+                UnityEngine.Random.Range(0f, 1f)
+            );
+            props.SetColor("_BaseColor", particleColor);
+            rend.SetPropertyBlock(props);
+        }
+    }
+
+    void CreateCloudShadow(Transform cloudParent, int index)
+    {
+        GameObject shadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        shadow.name = $"CloudShadow_{index}";
+        shadow.transform.parent = cloudParent;
+        shadow.transform.localPosition = new Vector3(0, -cloudParent.position.y + 10f, 0);
+        shadow.transform.localRotation = Quaternion.Euler(90, 0, 0);
+
+        // Scale shadow to cloud size (uses average of scale range)
+        float avgScale = (particleCloudData.cloudScaleMin.x + particleCloudData.cloudScaleMax.x) / 2f;
+        float shadowSize = avgScale * particleCloudData.cloudParticleSize;
+        shadow.transform.localScale = new Vector3(shadowSize, shadowSize, shadowSize);
+
+        // Remove collider
+        Collider col = shadow.GetComponent<Collider>();
+        SafeDestroy(col);
+
+        // Apply shadow material
+        Renderer rend = shadow.GetComponent<Renderer>();
+        if (rend != null)
+        {
+            rend.sharedMaterial = particleCloudData.cloudShadowMaterial;
+        }
+    }
+
+    public void RemoveParticleClouds()
+    {
+        // Remove all clouds with Cloud tag
+        GameObject[] clouds = GameObject.FindGameObjectsWithTag("Cloud");
+        foreach (GameObject cloud in clouds)
+        {
+            DestroyImmediate(cloud);
+        }
+
+        // Remove cloud manager
+        SafeDestroy(_cloudManager);
+        _cloudManager = null;
+
+        Debug.Log("Removed particle clouds.");
+    }
+
+    // ---------------------------
     // Rain Methods
     // ---------------------------
     public void GenerateRain()
@@ -1949,6 +2145,14 @@ public class CustomTerrain : MonoBehaviour
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         main.playOnAwake = true;
         main.loop = true;
+
+        // Force over Lifetime module - wind effect
+        var forceOverLifetime = ps.forceOverLifetime;
+        forceOverLifetime.enabled = true;
+        forceOverLifetime.space = ParticleSystemSimulationSpace.World;
+        forceOverLifetime.x = rainData.windForce.x;
+        forceOverLifetime.y = rainData.windForce.y;
+        forceOverLifetime.z = rainData.windForce.z;
 
         // Emission module
         var emission = ps.emission;
