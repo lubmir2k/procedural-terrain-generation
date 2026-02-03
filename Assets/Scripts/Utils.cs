@@ -40,6 +40,47 @@ public static class Utils
     }
 
     /// <summary>
+    /// Ridged Multifractal - creates sharp ridges like eroded mountains.
+    /// Based on Ken Musgrave's algorithm from "Texturing and Modeling: A Procedural Approach"
+    /// Key difference from FBM: ridges are created at each octave, valleys get less detail.
+    /// </summary>
+    /// <param name="x">X position (already scaled)</param>
+    /// <param name="y">Y position (already scaled)</param>
+    /// <param name="octaves">Number of noise layers to combine</param>
+    /// <param name="persistence">How much each octave's amplitude changes (typically 0.5)</param>
+    /// <param name="offset">Ridge offset, typically 1.0</param>
+    /// <returns>Height value (may exceed 1.0, consider normalizing)</returns>
+    public static float RidgedFBM(float x, float y, int octaves, float persistence, float offset = 1f)
+    {
+        float total = 0;
+        float frequency = 1;
+        float amplitude = 1;
+        float weight = 1;  // Weights successive octaves - valleys get less detail
+
+        for (int i = 0; i < octaves; i++)
+        {
+            // Get base Perlin noise signal
+            float signal = Mathf.PerlinNoise(x * frequency, y * frequency);
+
+            // Create ridge: invert absolute value
+            signal = offset - Mathf.Abs(signal * 2f - 1f);
+
+            // Sharpen the ridge by squaring
+            signal *= signal;
+
+            // Weight by previous octave's signal (valleys = less detail)
+            signal *= weight;
+            weight = Mathf.Clamp01(signal * 2f);
+
+            total += signal * amplitude;
+            amplitude *= persistence;
+            frequency *= 2;
+        }
+
+        return total;
+    }
+
+    /// <summary>
     /// Remaps a value from one range to another.
     /// </summary>
     /// <param name="value">The value to remap</param>

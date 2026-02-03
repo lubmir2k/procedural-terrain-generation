@@ -54,6 +54,16 @@ public static class TerrainTestMenu
         }
     }
 
+    [MenuItem("Tools/Terrain Test/Apply Splat Maps")]
+    public static void ApplySplatMaps()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.SplatMaps();
+            Debug.Log($"Splat Maps applied with {terrain.splatHeights.Count} texture layers");
+        }
+    }
+
     [MenuItem("Tools/Terrain Test/Apply Details")]
     public static void ApplyDetails()
     {
@@ -82,6 +92,56 @@ public static class TerrainTestMenu
         {
             terrain.AddWater();
             Debug.Log($"Water added at height={terrain.waterHeight}");
+        }
+    }
+
+    [MenuItem("Tools/Terrain Test/Apply Fog")]
+    public static void ApplyFog()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.ApplyFog();
+            Debug.Log($"Fog applied: Enabled={terrain.enableFog}, Mode={terrain.fogMode}, Color={terrain.fogColor}, Density={terrain.fogDensity}");
+        }
+    }
+
+    [MenuItem("Tools/Terrain Test/Generate Clouds")]
+    public static void GenerateClouds()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.GenerateClouds();
+            Debug.Log($"Clouds generated ({terrain.cloudData.mode}): Height={terrain.cloudData.cloudHeight}, Scale={terrain.cloudData.cloudScale}");
+        }
+    }
+
+    [MenuItem("Tools/Terrain Test/Remove Clouds")]
+    public static void RemoveClouds()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.RemoveClouds();
+            Debug.Log("Cloud plane removed.");
+        }
+    }
+
+    [MenuItem("Tools/Terrain Test/Generate Rain")]
+    public static void GenerateRain()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.GenerateRain();
+            Debug.Log($"Rain generated: MaxParticles={terrain.rainData.maxParticles}, EmissionRate={terrain.rainData.emissionRate}");
+        }
+    }
+
+    [MenuItem("Tools/Terrain Test/Remove Rain")]
+    public static void RemoveRain()
+    {
+        if (TryGetTerrain(out var terrain))
+        {
+            terrain.RemoveRain();
+            Debug.Log("Rain removed.");
         }
     }
 }
