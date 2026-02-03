@@ -55,8 +55,8 @@ This document outlines the key TerrainData API methods and their practical use c
 ```csharp
 // From CustomTerrain.cs - applies textures based on slope
 float steepness = terrainData.GetSteepness(
-    x / (float)alphaWidth,
-    y / (float)alphaHeight
+    x / (float)(alphaWidth - 1),
+    y / (float)(alphaHeight - 1)
 );
 
 if (steepness > splatHeights[i].minSlope && steepness < splatHeights[i].maxSlope)
