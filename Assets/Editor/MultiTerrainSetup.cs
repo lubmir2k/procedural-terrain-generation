@@ -6,6 +6,18 @@ using UnityEditor;
 /// </summary>
 public class MultiTerrainSetup : EditorWindow
 {
+    // Constants for paths and names
+    private const string TerrainDataFolderPath = "Assets/TerrainData";
+    private const string TerrainDataFolderName = "TerrainData";
+    private const string TerrainGridParentName = "Terrain Grid";
+
+    // Constants for quick setup defaults
+    private const int QuickGridSize = 2;
+    private const int QuickTerrainResolution = 513;
+    private const int QuickTerrainSize = 500;
+    private const int QuickTerrainHeight = 100;
+
+    // Instance fields for EditorWindow
     private int gridSizeX = 2;
     private int gridSizeZ = 2;
     private int terrainResolution = 513;
@@ -21,7 +33,7 @@ public class MultiTerrainSetup : EditorWindow
     [MenuItem("Tools/Terrain/Quick Setup/Create 2x2 Terrain Grid")]
     public static void CreateQuick2x2Grid()
     {
-        CreateTerrainGrid(2, 2, 513, 500, 100);
+        CreateTerrainGrid(QuickGridSize, QuickGridSize, QuickTerrainResolution, QuickTerrainSize, QuickTerrainHeight);
     }
 
     [MenuItem("Tools/Terrain/Quick Setup/Setup Neighbors")]
@@ -38,13 +50,12 @@ public class MultiTerrainSetup : EditorWindow
 
     private static void CreateTerrainGrid(int gridX, int gridZ, int resolution, int size, int height)
     {
-        string folderPath = "Assets/TerrainData";
-        if (!AssetDatabase.IsValidFolder(folderPath))
+        if (!AssetDatabase.IsValidFolder(TerrainDataFolderPath))
         {
-            AssetDatabase.CreateFolder("Assets", "TerrainData");
+            AssetDatabase.CreateFolder("Assets", TerrainDataFolderName);
         }
 
-        GameObject terrainParent = new GameObject("Terrain Grid");
+        GameObject terrainParent = new GameObject(TerrainGridParentName);
         Undo.RegisterCreatedObjectUndo(terrainParent, "Create Multi-Terrain Grid");
 
         Terrain[,] terrains = new Terrain[gridX, gridZ];
@@ -57,7 +68,7 @@ public class MultiTerrainSetup : EditorWindow
                 terrainData.heightmapResolution = resolution;
                 terrainData.size = new Vector3(size, height, size);
 
-                string assetPath = $"{folderPath}/TerrainData_{x}_{z}.asset";
+                string assetPath = $"{TerrainDataFolderPath}/TerrainData_{x}_{z}.asset";
                 AssetDatabase.CreateAsset(terrainData, assetPath);
 
                 GameObject terrainGO = Terrain.CreateTerrainGameObject(terrainData);
@@ -196,113 +207,27 @@ public class MultiTerrainSetup : EditorWindow
 
     private void CreateMultiTerrainGrid()
     {
-        // Create folder for terrain data if it doesn't exist
-        string folderPath = "Assets/TerrainData";
-        if (!AssetDatabase.IsValidFolder(folderPath))
-        {
-            AssetDatabase.CreateFolder("Assets", "TerrainData");
-        }
-
-        // Create parent object for organization
-        GameObject terrainParent = new GameObject("Terrain Grid");
-        Undo.RegisterCreatedObjectUndo(terrainParent, "Create Multi-Terrain Grid");
-
-        Terrain[,] terrains = new Terrain[gridSizeX, gridSizeZ];
-
-        // Create terrain tiles
-        for (int x = 0; x < gridSizeX; x++)
-        {
-            for (int z = 0; z < gridSizeZ; z++)
-            {
-                // Create unique TerrainData asset
-                TerrainData terrainData = new TerrainData();
-                terrainData.heightmapResolution = terrainResolution;
-                terrainData.size = new Vector3(terrainSize, terrainHeight, terrainSize);
-
-                string assetPath = $"{folderPath}/TerrainData_{x}_{z}.asset";
-                AssetDatabase.CreateAsset(terrainData, assetPath);
-
-                // Create terrain GameObject
-                GameObject terrainGO = Terrain.CreateTerrainGameObject(terrainData);
-                terrainGO.name = $"Terrain_{x}_{z}";
-                terrainGO.transform.parent = terrainParent.transform;
-                terrainGO.transform.position = new Vector3(x * terrainSize, 0, z * terrainSize);
-
-                // Set tag and layer
-                terrainGO.tag = "Terrain";
-                int terrainLayer = LayerMask.NameToLayer("Terrain");
-                if (terrainLayer >= 0) terrainGO.layer = terrainLayer;
-
-                terrains[x, z] = terrainGO.GetComponent<Terrain>();
-            }
-        }
-
-        // Set up neighbor relationships
-        for (int x = 0; x < gridSizeX; x++)
-        {
-            for (int z = 0; z < gridSizeZ; z++)
-            {
-                Terrain left = x > 0 ? terrains[x - 1, z] : null;
-                Terrain right = x < gridSizeX - 1 ? terrains[x + 1, z] : null;
-                Terrain bottom = z > 0 ? terrains[x, z - 1] : null;
-                Terrain top = z < gridSizeZ - 1 ? terrains[x, z + 1] : null;
-
-                terrains[x, z].SetNeighbors(left, top, right, bottom);
-            }
-        }
-
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
-
-        Debug.Log($"Created {gridSizeX}x{gridSizeZ} terrain grid with neighbor relationships.");
+        // Delegate to static method with instance parameters
+        CreateTerrainGrid(gridSizeX, gridSizeZ, terrainResolution, terrainSize, terrainHeight);
     }
 
     private void SetupNeighborsForExistingTerrains()
     {
-        Terrain[] allTerrains = Terrain.activeTerrains;
-
-        if (allTerrains.Length == 0)
+        // Check for empty with dialog feedback (EditorWindow context)
+        if (Terrain.activeTerrains.Length == 0)
         {
             EditorUtility.DisplayDialog("No Terrains", "No active terrains found in the scene.", "OK");
             return;
         }
 
-        // Get terrain size from first terrain
-        float terrainWidth = allTerrains[0].terrainData.size.x;
-        float terrainDepth = allTerrains[0].terrainData.size.z;
-
-        // Build a dictionary of terrains by their grid position
-        System.Collections.Generic.Dictionary<Vector2Int, Terrain> terrainGrid =
-            new System.Collections.Generic.Dictionary<Vector2Int, Terrain>();
-
-        foreach (Terrain t in allTerrains)
-        {
-            int gridX = Mathf.RoundToInt(t.transform.position.x / terrainWidth);
-            int gridZ = Mathf.RoundToInt(t.transform.position.z / terrainDepth);
-            terrainGrid[new Vector2Int(gridX, gridZ)] = t;
-        }
-
-        // Set up neighbors
-        foreach (var kvp in terrainGrid)
-        {
-            Vector2Int pos = kvp.Key;
-            Terrain terrain = kvp.Value;
-
-            terrainGrid.TryGetValue(new Vector2Int(pos.x - 1, pos.y), out Terrain left);
-            terrainGrid.TryGetValue(new Vector2Int(pos.x + 1, pos.y), out Terrain right);
-            terrainGrid.TryGetValue(new Vector2Int(pos.x, pos.y - 1), out Terrain bottom);
-            terrainGrid.TryGetValue(new Vector2Int(pos.x, pos.y + 1), out Terrain top);
-
-            terrain.SetNeighbors(left, top, right, bottom);
-        }
-
-        Debug.Log($"Set up neighbor relationships for {allTerrains.Length} terrains.");
+        // Delegate to static method for core logic
+        SetupNeighborsStatic();
     }
 
     private void AddTControllerToScene()
     {
-        // Check if TController already exists
-        TController existing = FindObjectOfType<TController>();
+        // Check for existing with dialog feedback (EditorWindow context)
+        TController existing = Object.FindObjectOfType<TController>();
         if (existing != null)
         {
             Selection.activeGameObject = existing.gameObject;
@@ -311,11 +236,7 @@ public class MultiTerrainSetup : EditorWindow
             return;
         }
 
-        GameObject controllerGO = new GameObject("TerrainController");
-        TController controller = controllerGO.AddComponent<TController>();
-        Undo.RegisterCreatedObjectUndo(controllerGO, "Add TController");
-
-        Selection.activeGameObject = controllerGO;
-        Debug.Log("Added TerrainController with TController component to the scene.");
+        // Delegate to static method for core logic
+        AddTControllerStatic();
     }
 }

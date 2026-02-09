@@ -13,6 +13,15 @@ using UnityEditor;
 public class TController : MonoBehaviour
 {
     // ---------------------------
+    // Constants
+    // ---------------------------
+    /// <summary>
+    /// Additional offset to ensure noise sampling starts well away from world origin.
+    /// Prevents mirroring artifacts that can occur when sampling near (0,0).
+    /// </summary>
+    private const float WorldOriginOffset = 1000f;
+
+    // ---------------------------
     // Perlin Noise Parameters
     // ---------------------------
     [Header("Perlin Noise Settings")]
@@ -119,7 +128,7 @@ public class TController : MonoBehaviour
                 // Offset by total world size to ensure sampling starts well away from origin
                 float worldSizeX = maxX - minX;
                 float worldSizeZ = maxZ - minZ;
-                zeroOffsetX = Mathf.Max(worldSizeX, worldSizeZ) + 1000f;
+                zeroOffsetX = Mathf.Max(worldSizeX, worldSizeZ) + WorldOriginOffset;
                 zeroOffsetZ = zeroOffsetX;
             }
 
