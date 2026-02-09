@@ -266,7 +266,7 @@ public static class TControllerMenu
     [MenuItem("Tools/Terrain/Generate All Terrains")]
     public static void GenerateAllTerrainsMenu()
     {
-        TController controller = Object.FindObjectOfType<TController>();
+        TController controller = Object.FindAnyObjectByType<TController>();
         if (controller != null)
         {
             controller.GenerateAllTerrains();
@@ -281,7 +281,7 @@ public static class TControllerMenu
     [MenuItem("Tools/Terrain/Reset All Terrains")]
     public static void ResetAllTerrainsMenu()
     {
-        TController controller = Object.FindObjectOfType<TController>();
+        TController controller = Object.FindAnyObjectByType<TController>();
         if (controller != null)
         {
             controller.ResetAllTerrains();

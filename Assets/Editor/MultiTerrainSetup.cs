@@ -112,13 +112,29 @@ public class MultiTerrainSetup : EditorWindow
             return;
         }
 
-        float terrainWidth = allTerrains[0].terrainData.size.x;
-        float terrainDepth = allTerrains[0].terrainData.size.z;
+        // Get terrain size from first valid terrain
+        TerrainData firstTerrainData = allTerrains[0].terrainData;
+        if (firstTerrainData == null)
+        {
+            Debug.LogWarning("First terrain has no TerrainData assigned.");
+            return;
+        }
+
+        float terrainWidth = firstTerrainData.size.x;
+        float terrainDepth = firstTerrainData.size.z;
+
+        // Guard against division by zero (shouldn't happen with valid terrain)
+        if (terrainWidth <= 0f || terrainDepth <= 0f)
+        {
+            Debug.LogWarning("Terrain has invalid size (zero or negative).");
+            return;
+        }
 
         var terrainGrid = new System.Collections.Generic.Dictionary<Vector2Int, Terrain>();
 
         foreach (Terrain t in allTerrains)
         {
+            if (t == null || t.terrainData == null) continue;
             int gridX = Mathf.RoundToInt(t.transform.position.x / terrainWidth);
             int gridZ = Mathf.RoundToInt(t.transform.position.z / terrainDepth);
             terrainGrid[new Vector2Int(gridX, gridZ)] = t;
@@ -142,7 +158,7 @@ public class MultiTerrainSetup : EditorWindow
 
     private static void AddTControllerStatic()
     {
-        TController existing = Object.FindObjectOfType<TController>();
+        TController existing = Object.FindAnyObjectByType<TController>();
         if (existing != null)
         {
             Selection.activeGameObject = existing.gameObject;
@@ -227,7 +243,7 @@ public class MultiTerrainSetup : EditorWindow
     private void AddTControllerToScene()
     {
         // Check for existing with dialog feedback (EditorWindow context)
-        TController existing = Object.FindObjectOfType<TController>();
+        TController existing = Object.FindAnyObjectByType<TController>();
         if (existing != null)
         {
             Selection.activeGameObject = existing.gameObject;
