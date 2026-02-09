@@ -50,9 +50,9 @@ public class TController : MonoBehaviour
     [Tooltip("Manual Z offset added to world position before sampling (auto-calculated if useZeroOffset is true)")]
     public float perlinZeroOffsetZ = 0f;
 
-    [Header("Actions")]
-    [Tooltip("Click to regenerate all terrains")]
-    public bool regenerate = false;
+    [Header("Seam Stitching")]
+    [Tooltip("Enable edge stitching to guarantee seamless borders (handles floating-point precision)")]
+    public bool enableSeamStitching = true;
 
     // Cache to prevent excessive regeneration
     private bool _isGenerating = false;
@@ -114,12 +114,15 @@ public class TController : MonoBehaviour
                 GenerateTerrainHeights(terrain, zeroOffsetX, zeroOffsetZ);
             }
 
-            // Second pass: Stitch seams between neighboring terrains
-            foreach (Terrain terrain in terrains)
+            // Second pass: Stitch seams between neighboring terrains (optional)
+            if (enableSeamStitching)
             {
-                if (terrain == null || terrain.terrainData == null) continue;
+                foreach (Terrain terrain in terrains)
+                {
+                    if (terrain == null || terrain.terrainData == null) continue;
 
-                StitchTerrainSeams(terrain);
+                    StitchTerrainSeams(terrain);
+                }
             }
         }
         finally

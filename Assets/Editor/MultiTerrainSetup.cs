@@ -230,7 +230,8 @@ public class MultiTerrainSetup : EditorWindow
 
                 // Set tag and layer
                 terrainGO.tag = "Terrain";
-                terrainGO.layer = LayerMask.NameToLayer("Terrain");
+                int terrainLayer = LayerMask.NameToLayer("Terrain");
+                if (terrainLayer >= 0) terrainGO.layer = terrainLayer;
 
                 terrains[x, z] = terrainGO.GetComponent<Terrain>();
             }
