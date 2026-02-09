@@ -99,11 +99,28 @@ public class TController : MonoBehaviour
 
             if (useZeroOffset && terrains.Length > 0)
             {
-                // Use terrain size to calculate offset that moves sampling away from origin
-                float terrainSize = terrains[0].terrainData.size.x;
-                float dynamicOffset = (terrains.Length + 1) * terrainSize;
-                zeroOffsetX = dynamicOffset;
-                zeroOffsetZ = dynamicOffset;
+                // Calculate actual world bounds of all terrains to determine proper offset
+                // This handles non-square grids better than just using terrains.Length
+                float minX = float.MaxValue, maxX = float.MinValue;
+                float minZ = float.MaxValue, maxZ = float.MinValue;
+
+                foreach (Terrain t in terrains)
+                {
+                    if (t == null || t.terrainData == null) continue;
+                    Vector3 pos = t.transform.position;
+                    Vector3 size = t.terrainData.size;
+
+                    minX = Mathf.Min(minX, pos.x);
+                    maxX = Mathf.Max(maxX, pos.x + size.x);
+                    minZ = Mathf.Min(minZ, pos.z);
+                    maxZ = Mathf.Max(maxZ, pos.z + size.z);
+                }
+
+                // Offset by total world size to ensure sampling starts well away from origin
+                float worldSizeX = maxX - minX;
+                float worldSizeZ = maxZ - minZ;
+                zeroOffsetX = Mathf.Max(worldSizeX, worldSizeZ) + 1000f;
+                zeroOffsetZ = zeroOffsetX;
             }
 
             // First pass: Generate heights for all terrains using world position
@@ -189,11 +206,13 @@ public class TController : MonoBehaviour
         // Stitch top neighbor (copy our top edge to neighbor's bottom edge)
         if (terrain.topNeighbor != null && terrain.topNeighbor.terrainData != null)
         {
-            // Get the top edge of this terrain (last row)
-            // GetHeights(xBase, yBase, width, height) - yBase is the row (Z), xBase is column (X)
+            // Unity terrain height array convention: heights[z, x] or heights[row, column]
+            // GetHeights(xBase, yBase, width, height) returns float[height, width] = float[z, x]
+            // topEdge will be float[1, resolution] - 1 row (Z), all columns (X)
             float[,] topEdge = terrainData.GetHeights(0, resolution - 1, resolution, 1);
 
-            // Set as the bottom edge of the top neighbor (first row)
+            // SetHeights(xBase, yBase, heights) expects heights[z, x]
+            // Setting at (0, 0) places this row at the neighbor's bottom edge
             terrain.topNeighbor.terrainData.SetHeights(0, 0, topEdge);
         }
 
