@@ -8817,54 +8817,54 @@ MonoBehaviour:
   - texture: {fileID: 2800000, guid: 46ae0649924b543a6bb192dd3c93b89e, type: 3}
     textureNormalMap: {fileID: 0}
     minHeight: 0
-    maxHeight: 0.35
-    minSlope: 0
-    maxSlope: 40
-    tileOffset: {x: 0, y: 0}
-    tileSize: {x: 15, y: 15}
-    splatOffset: 0.1
-    splatNoiseXScale: 0.01
-    splatNoiseYScale: 0.01
-    splatNoiseScaler: 0.1
-    remove: 0
-  - texture: {fileID: 2800000, guid: 1a096c027adee46b18026c1883d94a09, type: 3}
-    textureNormalMap: {fileID: 0}
-    minHeight: 0.25
-    maxHeight: 0.6
+    maxHeight: 0.4
     minSlope: 0
     maxSlope: 50
     tileOffset: {x: 0, y: 0}
+    tileSize: {x: 15, y: 15}
+    splatOffset: 0.2
+    splatNoiseXScale: 0.05
+    splatNoiseYScale: 0.05
+    splatNoiseScaler: 0.15
+    remove: 0
+  - texture: {fileID: 2800000, guid: 1a096c027adee46b18026c1883d94a09, type: 3}
+    textureNormalMap: {fileID: 0}
+    minHeight: 0.2
+    maxHeight: 0.55
+    minSlope: 10
+    maxSlope: 60
+    tileOffset: {x: 0, y: 0}
     tileSize: {x: 20, y: 20}
-    splatOffset: 0.1
-    splatNoiseXScale: 0.01
-    splatNoiseYScale: 0.01
-    splatNoiseScaler: 0.1
+    splatOffset: 0.2
+    splatNoiseXScale: 0.03
+    splatNoiseYScale: 0.04
+    splatNoiseScaler: 0.2
     remove: 0
   - texture: {fileID: 2800000, guid: e13ad7a9d4dc84697aaa540e7548d65b, type: 3}
     textureNormalMap: {fileID: 0}
     minHeight: 0
     maxHeight: 1
-    minSlope: 40
+    minSlope: 30
     maxSlope: 90
     tileOffset: {x: 0, y: 0}
     tileSize: {x: 25, y: 25}
-    splatOffset: 0.1
-    splatNoiseXScale: 0.01
-    splatNoiseYScale: 0.01
-    splatNoiseScaler: 0.1
+    splatOffset: 0.15
+    splatNoiseXScale: 0.04
+    splatNoiseYScale: 0.06
+    splatNoiseScaler: 0.18
     remove: 0
   - texture: {fileID: 2800000, guid: c6141b18755094f808d9c85956b9c28a, type: 3}
     textureNormalMap: {fileID: 0}
-    minHeight: 0.5
+    minHeight: 0.45
     maxHeight: 1
     minSlope: 0
-    maxSlope: 90
+    maxSlope: 60
     tileOffset: {x: 0, y: 0}
     tileSize: {x: 30, y: 30}
-    splatOffset: 0.1
-    splatNoiseXScale: 0.01
-    splatNoiseYScale: 0.01
-    splatNoiseScaler: 0.1
+    splatOffset: 0.2
+    splatNoiseXScale: 0.02
+    splatNoiseYScale: 0.03
+    splatNoiseScaler: 0.25
     remove: 0
   maxTrees: 5000
   treeSpacing: 5
@@ -8956,7 +8956,7 @@ TerrainCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 298881604}
-  m_Material: {fileID: 474445690}
+  m_Material: {fileID: 300385084}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -9018,12 +9018,25 @@ Transform:
   m_GameObject: {fileID: 298881604}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 29, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!134 &300385084
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ' (Instance) (Instance) (Instance) (Instance)'
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &300390876
 GameObject:
   m_ObjectHideFlags: 0
@@ -9243,7 +9256,7 @@ MonoBehaviour:
   useZeroOffset: 1
   perlinZeroOffsetX: 0
   perlinZeroOffsetZ: 0
-  regenerate: 0
+  enableSeamStitching: 1
 --- !u!4 &335387185
 Transform:
   m_ObjectHideFlags: 0
@@ -10069,19 +10082,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 458670020}
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
---- !u!134 &474445690
-PhysicsMaterial:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: ' (Instance) (Instance) (Instance)'
-  serializedVersion: 2
-  m_DynamicFriction: 0.6
-  m_StaticFriction: 0.6
-  m_Bounciness: 0
-  m_FrictionCombine: 0
-  m_BounceCombine: 0
 --- !u!1 &486062289
 GameObject:
   m_ObjectHideFlags: 0

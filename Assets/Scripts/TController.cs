@@ -143,12 +143,7 @@ public class TController : MonoBehaviour
             // Second pass: Stitch seams between neighboring terrains (optional)
             if (enableSeamStitching)
             {
-                foreach (Terrain terrain in terrains)
-                {
-                    if (terrain == null || terrain.terrainData == null) continue;
-
-                    StitchTerrainSeams(terrain);
-                }
+                StitchAllTerrains();
             }
         }
         finally
@@ -200,6 +195,32 @@ public class TController : MonoBehaviour
 
         // Apply the heightmap to the terrain
         terrainData.SetHeights(0, 0, heights);
+    }
+
+    /// <summary>
+    /// Stitches seams between this terrain and its neighbors by copying edge heights.
+    /// Only handles top and right neighbors to avoid double-processing.
+    /// </summary>
+    /// <param name="terrain">The terrain to stitch</param>
+    /// <summary>
+    /// Stitches seams for all active terrains without regenerating heights.
+    /// Can be used after loading heightmaps or any other height modification.
+    /// </summary>
+    public void StitchAllTerrains()
+    {
+        Terrain[] terrains = Terrain.activeTerrains;
+
+        if (terrains == null || terrains.Length == 0)
+        {
+            Debug.LogWarning("No active terrains found in the scene.", this);
+            return;
+        }
+
+        foreach (Terrain terrain in terrains)
+        {
+            if (terrain == null || terrain.terrainData == null) continue;
+            StitchTerrainSeams(terrain);
+        }
     }
 
     /// <summary>
@@ -292,6 +313,21 @@ public static class TControllerMenu
             Debug.LogWarning("No TController found in the scene. Add one first.");
         }
     }
+
+    [MenuItem("Tools/Terrain/Stitch All Terrains")]
+    public static void StitchAllTerrainsMenu()
+    {
+        TController controller = Object.FindAnyObjectByType<TController>();
+        if (controller != null)
+        {
+            controller.StitchAllTerrains();
+            Debug.Log("Stitched seams for all active terrains.");
+        }
+        else
+        {
+            Debug.LogWarning("No TController found in the scene. Add one first.");
+        }
+    }
 }
 
 [CustomEditor(typeof(TController))]
@@ -310,6 +346,12 @@ public class TControllerEditor : Editor
         if (GUILayout.Button("Generate All Terrains", GUILayout.Height(30)))
         {
             controller.GenerateAllTerrains();
+        }
+
+        // Stitch button
+        if (GUILayout.Button("Stitch All Terrains"))
+        {
+            controller.StitchAllTerrains();
         }
 
         // Reset button

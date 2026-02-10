@@ -972,36 +972,45 @@ public class CustomTerrain : MonoBehaviour
                     float thisHeightStart = splatHeights[i].minHeight - offset;
                     float thisHeightStop = splatHeights[i].maxHeight + offset;
 
-                    // Check both height range AND slope range
+                    // Slope fade zone width in degrees (uses offset scaled to slope range)
+                    float slopeRange = splatHeights[i].maxSlope - splatHeights[i].minSlope;
+                    float slopeFade = Mathf.Min(slopeRange * 0.25f, 10f);
+                    float slopeStart = splatHeights[i].minSlope - slopeFade;
+                    float slopeStop = splatHeights[i].maxSlope + slopeFade;
+
+                    // Check both height range AND slope range (with fade zones)
                     if ((terrainHeight >= thisHeightStart && terrainHeight <= thisHeightStop) &&
-                        (angle >= splatHeights[i].minSlope && angle <= splatHeights[i].maxSlope))
+                        (angle >= slopeStart && angle <= slopeStop))
                     {
-                        // Guard against division by zero when offset is very small
+                        // Calculate height weight
+                        float heightWeight = 1f;
                         if (Mathf.Abs(offset) > float.Epsilon)
                         {
-                            // Check if we're in the lower fade zone (near minHeight)
                             if (terrainHeight <= thisHeightStart + offset)
                             {
-                                // Fade from 0 to 1 as we move from the lower edge inwards
-                                splat[i] = Mathf.InverseLerp(thisHeightStart, thisHeightStart + offset, terrainHeight);
+                                heightWeight = Mathf.InverseLerp(thisHeightStart, thisHeightStart + offset, terrainHeight);
                             }
-                            // Check if we're in the upper fade zone (near maxHeight)
                             else if (terrainHeight >= thisHeightStop - offset)
                             {
-                                // Fade from 1 to 0 as we approach the upper edge
-                                splat[i] = Mathf.InverseLerp(thisHeightStop, thisHeightStop - offset, terrainHeight);
-                            }
-                            else
-                            {
-                                // Fully inside the range - full opacity
-                                splat[i] = 1;
+                                heightWeight = Mathf.InverseLerp(thisHeightStop, thisHeightStop - offset, terrainHeight);
                             }
                         }
-                        else
+
+                        // Calculate slope weight with fade at boundaries
+                        float slopeWeight = 1f;
+                        if (slopeFade > 0.01f)
                         {
-                            // Offset is effectively zero - use full opacity
-                            splat[i] = 1;
+                            if (angle <= splatHeights[i].minSlope)
+                            {
+                                slopeWeight = Mathf.InverseLerp(slopeStart, splatHeights[i].minSlope, angle);
+                            }
+                            else if (angle >= splatHeights[i].maxSlope)
+                            {
+                                slopeWeight = Mathf.InverseLerp(slopeStop, splatHeights[i].maxSlope, angle);
+                            }
                         }
+
+                        splat[i] = heightWeight * slopeWeight;
                         emptySplat = false;
                     }
                 }

@@ -434,4 +434,318 @@ public static class TerrainTestMenu
         }
         results.AppendLine($"  Details: {detailCount:N0} instances ({prototypeCount} prototypes)");
     }
+
+    // ==================== MULTI-TERRAIN E2E TEST ====================
+
+    private const int TestGridSize = 2;
+    private const int TestResolution = 33;  // Minimal for fast tests
+    private const int TestSize = 100;
+    private const int TestHeight = 50;
+    private const string TestFolder = "Assets/TerrainData/Test";
+    private const string TestParentName = "TestTerrainGrid";
+    private const float SeamTolerance = 0.0001f;
+
+    [MenuItem("Tools/Terrain Test/Multi-Terrain E2E")]
+    public static void MultiTerrainE2ETest()
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var results = new StringBuilder();
+        int passed = 0;
+        int failed = 0;
+
+        Debug.Log("=== MULTI-TERRAIN E2E TEST STARTED ===");
+
+        // Track created assets for cleanup
+        var createdAssets = new System.Collections.Generic.List<string>();
+        GameObject testParent = null;
+        Terrain[,] terrains = null;
+
+        try
+        {
+            // Step 1: Create Grid
+            bool gridCreated = TryExecuteStep("Create Grid", 1, 6, () =>
+            {
+                testParent = CreateTestTerrainGrid(createdAssets, out terrains);
+            }, results);
+
+            if (gridCreated)
+            {
+                passed++;
+
+                // Step 2: Verify Positions
+                if (TryExecuteStep("Verify Positions", 2, 6, () =>
+                {
+                    VerifyTerrainPositions(terrains);
+                }, results))
+                    passed++;
+                else
+                    failed++;
+
+                // Step 3: Verify Neighbors
+                if (TryExecuteStep("Verify Neighbors", 3, 6, () =>
+                {
+                    VerifyNeighborRelationships(terrains);
+                }, results))
+                    passed++;
+                else
+                    failed++;
+
+                // Step 4: Generate Heights
+                if (TryExecuteStep("Generate Heights", 4, 6, () =>
+                {
+                    TController controller = testParent.AddComponent<TController>();
+                    controller.perlinXScale = 0.01f;
+                    controller.perlinZScale = 0.01f;
+                    controller.perlinHeightScale = 0.5f;
+                    controller.perlinOctaves = 4;
+                    controller.perlinPersistence = 0.5f;
+                    controller.enableSeamStitching = true;
+                    controller.GenerateAllTerrains();
+                }, results))
+                    passed++;
+                else
+                    failed++;
+
+                // Step 5: Verify Heights
+                if (TryExecuteStep("Verify Heights", 5, 6, () =>
+                {
+                    VerifyHeightsGenerated(terrains);
+                }, results))
+                    passed++;
+                else
+                    failed++;
+
+                // Step 6: Verify Seams
+                if (TryExecuteStep("Verify Seams", 6, 6, () =>
+                {
+                    VerifySeamStitching(terrains);
+                }, results))
+                    passed++;
+                else
+                    failed++;
+            }
+            else
+            {
+                failed++;
+            }
+        }
+        finally
+        {
+            // Cleanup test objects
+            CleanupTestTerrains(testParent, createdAssets);
+        }
+
+        stopwatch.Stop();
+
+        // Summary
+        Debug.Log("\n" + results.ToString());
+        string status = failed == 0 ? "PASSED" : "FAILED";
+        Debug.Log($"=== MULTI-TERRAIN E2E TEST {status} ===");
+        Debug.Log($"Steps: {passed} passed, {failed} failed");
+        Debug.Log($"Time: {stopwatch.ElapsedMilliseconds}ms");
+    }
+
+    private static GameObject CreateTestTerrainGrid(System.Collections.Generic.List<string> createdAssets, out Terrain[,] terrains)
+    {
+        // Create test folder if needed
+        if (!AssetDatabase.IsValidFolder(TestFolder))
+        {
+            AssetDatabase.CreateFolder("Assets/TerrainData", "Test");
+        }
+        createdAssets.Add(TestFolder);
+
+        GameObject testParent = new GameObject(TestParentName);
+        terrains = new Terrain[TestGridSize, TestGridSize];
+
+        for (int x = 0; x < TestGridSize; x++)
+        {
+            for (int z = 0; z < TestGridSize; z++)
+            {
+                TerrainData terrainData = new TerrainData();
+                terrainData.heightmapResolution = TestResolution;
+                terrainData.size = new Vector3(TestSize, TestHeight, TestSize);
+
+                string assetPath = $"{TestFolder}/TestTerrainData_{x}_{z}.asset";
+                AssetDatabase.CreateAsset(terrainData, assetPath);
+                createdAssets.Add(assetPath);
+
+                GameObject terrainGO = Terrain.CreateTerrainGameObject(terrainData);
+                terrainGO.name = $"TestTerrain_{x}_{z}";
+                terrainGO.transform.parent = testParent.transform;
+                terrainGO.transform.position = new Vector3(x * TestSize, 0, z * TestSize);
+
+                terrains[x, z] = terrainGO.GetComponent<Terrain>();
+            }
+        }
+
+        // Set up neighbor relationships
+        for (int x = 0; x < TestGridSize; x++)
+        {
+            for (int z = 0; z < TestGridSize; z++)
+            {
+                Terrain left = x > 0 ? terrains[x - 1, z] : null;
+                Terrain right = x < TestGridSize - 1 ? terrains[x + 1, z] : null;
+                Terrain bottom = z > 0 ? terrains[x, z - 1] : null;
+                Terrain top = z < TestGridSize - 1 ? terrains[x, z + 1] : null;
+
+                terrains[x, z].SetNeighbors(left, top, right, bottom);
+            }
+        }
+
+        AssetDatabase.SaveAssets();
+        return testParent;
+    }
+
+    private static void VerifyTerrainPositions(Terrain[,] terrains)
+    {
+        var expectedPositions = new Vector3[,]
+        {
+            { new Vector3(0, 0, 0), new Vector3(0, 0, TestSize) },
+            { new Vector3(TestSize, 0, 0), new Vector3(TestSize, 0, TestSize) }
+        };
+
+        for (int x = 0; x < TestGridSize; x++)
+        {
+            for (int z = 0; z < TestGridSize; z++)
+            {
+                Vector3 actual = terrains[x, z].transform.position;
+                Vector3 expected = expectedPositions[x, z];
+
+                if (actual != expected)
+                {
+                    throw new Exception($"Terrain [{x},{z}] at {actual} expected {expected}");
+                }
+            }
+        }
+    }
+
+    private static void VerifyNeighborRelationships(Terrain[,] terrains)
+    {
+        // Terrain[0,0] should have right=Terrain[1,0] and top=Terrain[0,1]
+        Terrain t00 = terrains[0, 0];
+        if (t00.rightNeighbor != terrains[1, 0])
+            throw new Exception("Terrain[0,0].rightNeighbor should be Terrain[1,0]");
+        if (t00.topNeighbor != terrains[0, 1])
+            throw new Exception("Terrain[0,0].topNeighbor should be Terrain[0,1]");
+        if (t00.leftNeighbor != null)
+            throw new Exception("Terrain[0,0].leftNeighbor should be null");
+        if (t00.bottomNeighbor != null)
+            throw new Exception("Terrain[0,0].bottomNeighbor should be null");
+
+        // Terrain[1,1] should have left=Terrain[0,1] and bottom=Terrain[1,0]
+        Terrain t11 = terrains[1, 1];
+        if (t11.leftNeighbor != terrains[0, 1])
+            throw new Exception("Terrain[1,1].leftNeighbor should be Terrain[0,1]");
+        if (t11.bottomNeighbor != terrains[1, 0])
+            throw new Exception("Terrain[1,1].bottomNeighbor should be Terrain[1,0]");
+        if (t11.rightNeighbor != null)
+            throw new Exception("Terrain[1,1].rightNeighbor should be null");
+        if (t11.topNeighbor != null)
+            throw new Exception("Terrain[1,1].topNeighbor should be null");
+    }
+
+    private static void VerifyHeightsGenerated(Terrain[,] terrains)
+    {
+        for (int x = 0; x < TestGridSize; x++)
+        {
+            for (int z = 0; z < TestGridSize; z++)
+            {
+                TerrainData td = terrains[x, z].terrainData;
+                int res = td.heightmapResolution;
+                float[,] heights = td.GetHeights(0, 0, res, res);
+
+                bool hasNonZero = false;
+                for (int hz = 0; hz < res && !hasNonZero; hz++)
+                {
+                    for (int hx = 0; hx < res && !hasNonZero; hx++)
+                    {
+                        float h = heights[hz, hx];
+                        if (h < 0f || h > 1f)
+                            throw new Exception($"Terrain[{x},{z}] has height {h} outside [0,1] at ({hx},{hz})");
+                        if (h > 0.001f)
+                            hasNonZero = true;
+                    }
+                }
+
+                if (!hasNonZero)
+                    throw new Exception($"Terrain[{x},{z}] has no non-zero heights");
+            }
+        }
+    }
+
+    private static void VerifySeamStitching(Terrain[,] terrains)
+    {
+        int res = TestResolution;
+
+        // Horizontal seam: right edge of [0,0] should match left edge of [1,0]
+        VerifyHorizontalSeam(terrains[0, 0], terrains[1, 0], res, "Terrain[0,0]->Terrain[1,0]");
+        VerifyHorizontalSeam(terrains[0, 1], terrains[1, 1], res, "Terrain[0,1]->Terrain[1,1]");
+
+        // Vertical seam: top edge of [0,0] should match bottom edge of [0,1]
+        VerifyVerticalSeam(terrains[0, 0], terrains[0, 1], res, "Terrain[0,0]->Terrain[0,1]");
+        VerifyVerticalSeam(terrains[1, 0], terrains[1, 1], res, "Terrain[1,0]->Terrain[1,1]");
+    }
+
+    private static void VerifyHorizontalSeam(Terrain left, Terrain right, int res, string seamName)
+    {
+        // Right edge of left terrain (last column)
+        float[,] leftEdge = left.terrainData.GetHeights(res - 1, 0, 1, res);
+        // Left edge of right terrain (first column)
+        float[,] rightEdge = right.terrainData.GetHeights(0, 0, 1, res);
+
+        for (int z = 0; z < res; z++)
+        {
+            float leftH = leftEdge[z, 0];
+            float rightH = rightEdge[z, 0];
+            if (Mathf.Abs(leftH - rightH) > SeamTolerance)
+            {
+                throw new Exception($"Seam mismatch at {seamName} row {z}: left={leftH}, right={rightH}");
+            }
+        }
+    }
+
+    private static void VerifyVerticalSeam(Terrain bottom, Terrain top, int res, string seamName)
+    {
+        // Top edge of bottom terrain (last row)
+        float[,] bottomEdge = bottom.terrainData.GetHeights(0, res - 1, res, 1);
+        // Bottom edge of top terrain (first row)
+        float[,] topEdge = top.terrainData.GetHeights(0, 0, res, 1);
+
+        for (int x = 0; x < res; x++)
+        {
+            float bottomH = bottomEdge[0, x];
+            float topH = topEdge[0, x];
+            if (Mathf.Abs(bottomH - topH) > SeamTolerance)
+            {
+                throw new Exception($"Seam mismatch at {seamName} col {x}: bottom={bottomH}, top={topH}");
+            }
+        }
+    }
+
+    private static void CleanupTestTerrains(GameObject testParent, System.Collections.Generic.List<string> createdAssets)
+    {
+        // Destroy test GameObjects
+        if (testParent != null)
+        {
+            UnityEngine.Object.DestroyImmediate(testParent);
+        }
+
+        // Delete created assets (in reverse order to delete folder last)
+        for (int i = createdAssets.Count - 1; i >= 0; i--)
+        {
+            string path = createdAssets[i];
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path) != null)
+            {
+                AssetDatabase.DeleteAsset(path);
+            }
+        }
+
+        // Try to delete the test folder if it exists and is empty
+        if (AssetDatabase.IsValidFolder(TestFolder))
+        {
+            AssetDatabase.DeleteAsset(TestFolder);
+        }
+
+        AssetDatabase.Refresh();
+    }
 }
