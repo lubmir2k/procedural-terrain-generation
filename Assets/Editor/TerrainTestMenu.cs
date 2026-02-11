@@ -597,18 +597,12 @@ public static class TerrainTestMenu
 
     private static void VerifyTerrainPositions(Terrain[,] terrains)
     {
-        var expectedPositions = new Vector3[,]
-        {
-            { new Vector3(0, 0, 0), new Vector3(0, 0, TestSize) },
-            { new Vector3(TestSize, 0, 0), new Vector3(TestSize, 0, TestSize) }
-        };
-
         for (int x = 0; x < TestGridSize; x++)
         {
             for (int z = 0; z < TestGridSize; z++)
             {
                 Vector3 actual = terrains[x, z].transform.position;
-                Vector3 expected = expectedPositions[x, z];
+                Vector3 expected = new Vector3(x * TestSize, 0, z * TestSize);
 
                 if (actual != expected)
                 {
@@ -620,27 +614,26 @@ public static class TerrainTestMenu
 
     private static void VerifyNeighborRelationships(Terrain[,] terrains)
     {
-        // Terrain[0,0] should have right=Terrain[1,0] and top=Terrain[0,1]
-        Terrain t00 = terrains[0, 0];
-        if (t00.rightNeighbor != terrains[1, 0])
-            throw new Exception("Terrain[0,0].rightNeighbor should be Terrain[1,0]");
-        if (t00.topNeighbor != terrains[0, 1])
-            throw new Exception("Terrain[0,0].topNeighbor should be Terrain[0,1]");
-        if (t00.leftNeighbor != null)
-            throw new Exception("Terrain[0,0].leftNeighbor should be null");
-        if (t00.bottomNeighbor != null)
-            throw new Exception("Terrain[0,0].bottomNeighbor should be null");
+        for (int x = 0; x < TestGridSize; x++)
+        {
+            for (int z = 0; z < TestGridSize; z++)
+            {
+                Terrain current = terrains[x, z];
+                Terrain expectedLeft = x > 0 ? terrains[x - 1, z] : null;
+                Terrain expectedRight = x < TestGridSize - 1 ? terrains[x + 1, z] : null;
+                Terrain expectedBottom = z > 0 ? terrains[x, z - 1] : null;
+                Terrain expectedTop = z < TestGridSize - 1 ? terrains[x, z + 1] : null;
 
-        // Terrain[1,1] should have left=Terrain[0,1] and bottom=Terrain[1,0]
-        Terrain t11 = terrains[1, 1];
-        if (t11.leftNeighbor != terrains[0, 1])
-            throw new Exception("Terrain[1,1].leftNeighbor should be Terrain[0,1]");
-        if (t11.bottomNeighbor != terrains[1, 0])
-            throw new Exception("Terrain[1,1].bottomNeighbor should be Terrain[1,0]");
-        if (t11.rightNeighbor != null)
-            throw new Exception("Terrain[1,1].rightNeighbor should be null");
-        if (t11.topNeighbor != null)
-            throw new Exception("Terrain[1,1].topNeighbor should be null");
+                if (current.leftNeighbor != expectedLeft)
+                    throw new Exception($"Terrain[{x},{z}] has incorrect left neighbor.");
+                if (current.rightNeighbor != expectedRight)
+                    throw new Exception($"Terrain[{x},{z}] has incorrect right neighbor.");
+                if (current.bottomNeighbor != expectedBottom)
+                    throw new Exception($"Terrain[{x},{z}] has incorrect bottom neighbor.");
+                if (current.topNeighbor != expectedTop)
+                    throw new Exception($"Terrain[{x},{z}] has incorrect top neighbor.");
+            }
+        }
     }
 
     private static void VerifyHeightsGenerated(Terrain[,] terrains)
