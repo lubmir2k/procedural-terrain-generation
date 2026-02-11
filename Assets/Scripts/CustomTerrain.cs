@@ -985,7 +985,7 @@ public class CustomTerrain : MonoBehaviour
                     {
                         // Calculate height weight
                         float heightWeight = 1f;
-                        if (Mathf.Abs(offset) > float.Epsilon)
+                        if (!Mathf.Approximately(offset, 0f))
                         {
                             if (terrainHeight <= thisHeightStart + offset)
                             {
