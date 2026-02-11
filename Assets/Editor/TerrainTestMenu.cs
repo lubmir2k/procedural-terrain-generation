@@ -668,14 +668,23 @@ public static class TerrainTestMenu
     private static void VerifySeamStitching(Terrain[,] terrains)
     {
         int res = TestResolution;
+        int gridSize = terrains.GetLength(0);
 
-        // Horizontal seam: right edge of [0,0] should match left edge of [1,0]
-        VerifyHorizontalSeam(terrains[0, 0], terrains[1, 0], res, "Terrain[0,0]->Terrain[1,0]");
-        VerifyHorizontalSeam(terrains[0, 1], terrains[1, 1], res, "Terrain[0,1]->Terrain[1,1]");
+        for (int x = 0; x < gridSize; x++)
+        {
+            for (int z = 0; z < gridSize; z++)
+            {
+                if (x < gridSize - 1)
+                {
+                    VerifyHorizontalSeam(terrains[x, z], terrains[x + 1, z], res, $"Terrain[{x},{z}]->Terrain[{x + 1},{z}]");
+                }
 
-        // Vertical seam: top edge of [0,0] should match bottom edge of [0,1]
-        VerifyVerticalSeam(terrains[0, 0], terrains[0, 1], res, "Terrain[0,0]->Terrain[0,1]");
-        VerifyVerticalSeam(terrains[1, 0], terrains[1, 1], res, "Terrain[1,0]->Terrain[1,1]");
+                if (z < gridSize - 1)
+                {
+                    VerifyVerticalSeam(terrains[x, z], terrains[x, z + 1], res, $"Terrain[{x},{z}]->Terrain[{x},{z + 1}]");
+                }
+            }
+        }
     }
 
     private static void VerifyHorizontalSeam(Terrain left, Terrain right, int res, string seamName)
