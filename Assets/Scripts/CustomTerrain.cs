@@ -288,6 +288,7 @@ public class CustomTerrain : MonoBehaviour
     private const float PositionRandomOffset = 5.0f;
     private const float RaycastHeightOffset = 10f;
     private const float RaycastMaxDistance = 100f;
+    private const float MaxSlopeFadeDegrees = 10f;
 
     // Unity layer constants (user-definable layers start at index 8)
     private const int FirstUserLayerIndex = 8;
@@ -974,7 +975,7 @@ public class CustomTerrain : MonoBehaviour
 
                     // Slope fade zone width in degrees (uses offset scaled to slope range)
                     float slopeRange = splatHeights[i].maxSlope - splatHeights[i].minSlope;
-                    float slopeFade = Mathf.Min(slopeRange * 0.25f, 10f);
+                    float slopeFade = Mathf.Min(slopeRange * 0.25f, MaxSlopeFadeDegrees);
                     float slopeStart = splatHeights[i].minSlope - slopeFade;
                     float slopeStop = splatHeights[i].maxSlope + slopeFade;
 

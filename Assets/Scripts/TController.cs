@@ -198,11 +198,6 @@ public class TController : MonoBehaviour
     }
 
     /// <summary>
-    /// Stitches seams between this terrain and its neighbors by copying edge heights.
-    /// Only handles top and right neighbors to avoid double-processing.
-    /// </summary>
-    /// <param name="terrain">The terrain to stitch</param>
-    /// <summary>
     /// Stitches seams for all active terrains without regenerating heights.
     /// Can be used after loading heightmaps or any other height modification.
     /// </summary>

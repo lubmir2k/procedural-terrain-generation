@@ -552,7 +552,6 @@ public static class TerrainTestMenu
         {
             AssetDatabase.CreateFolder("Assets/TerrainData", "Test");
         }
-        createdAssets.Add(TestFolder);
 
         GameObject testParent = new GameObject(TestParentName);
         terrains = new Terrain[TestGridSize, TestGridSize];
