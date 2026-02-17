@@ -928,6 +928,10 @@ public class CustomTerrain : MonoBehaviour
             terrainData.heightmapResolution,
             terrainData.heightmapResolution);
 
+        // Compute concavity map for terrain-shape-aware texturing
+        float[,] concavityMap = ComputeConcavityMap(heightMap,
+            terrainData.heightmapResolution, terrainData.heightmapResolution);
+
         // Create 3D array for splatmap data: [x, y, texture layer]
         float[,,] splatmapData = new float[terrainData.alphamapWidth,
                                            terrainData.alphamapHeight,
@@ -950,6 +954,9 @@ public class CustomTerrain : MonoBehaviour
                 heightMapY = Mathf.Clamp(heightMapY, 0, terrainData.heightmapResolution - 1);
 
                 float terrainHeight = heightMap[heightMapX, heightMapY];
+
+                // Sample concavity at heightmap coordinates
+                float concavity = concavityMap[heightMapX, heightMapY];
 
                 // Get steepness (slope angle) once per point using normalized coordinates
                 float normX = x * 1.0f / (terrainData.alphamapWidth - 1);
@@ -1011,8 +1018,46 @@ public class CustomTerrain : MonoBehaviour
                             }
                         }
 
-                        splat[i] = heightWeight * slopeWeight;
+                        // Apply concavity modifier based on layer position:
+                        // Lower layers (low index / low height) boosted in concave areas (valleys)
+                        // Higher layers (high index / high height) boosted in convex areas (ridges)
+                        float layerPosition = (float)i / Mathf.Max(1, splatHeights.Count - 1);
+                        // layerPosition: 0 = lowest layer, 1 = highest layer
+                        // concavity: positive = valley, negative = ridge
+                        // For low layers: positive concavity should boost (valley = more green)
+                        // For high layers: negative concavity should boost (ridge = more rock)
+                        float concavityInfluence = Mathf.Lerp(concavity, -concavity, layerPosition);
+                        float concavityModifier = 1f + concavityInfluence * 0.5f;
+                        concavityModifier = Mathf.Max(0.01f, concavityModifier);
+
+                        splat[i] = heightWeight * slopeWeight * concavityModifier;
                         emptySplat = false;
+                    }
+                }
+
+                // Slope priority: boost slope-gated layers at the expense of height-only layers
+                // This prevents cliff textures from competing with flat-ground textures
+                float slopeDominance = 0f;
+                for (int i = 0; i < splatHeights.Count; i++)
+                {
+                    if (splatHeights[i].minSlope > 0f && splat[i] > 0f)
+                    {
+                        slopeDominance = Mathf.Max(slopeDominance, splat[i]);
+                    }
+                }
+
+                if (slopeDominance > 0.1f)
+                {
+                    // Scale factor: how much slope layers dominate at high slopes
+                    // slopeDominance near 1 means slope layer has strong claim
+                    float suppressFactor = 1f - slopeDominance * 0.6f;
+                    for (int i = 0; i < splatHeights.Count; i++)
+                    {
+                        if (splatHeights[i].minSlope <= 0f)
+                        {
+                            // This is a height-only layer — suppress it
+                            splat[i] *= suppressFactor;
+                        }
                     }
                 }
 
@@ -1035,6 +1080,10 @@ public class CustomTerrain : MonoBehaviour
             }
         }
 
+        // Smooth the splatmap to eliminate per-pixel noise in transitions
+        SmoothAlphamap(splatmapData, terrainData.alphamapWidth, terrainData.alphamapHeight,
+            terrainData.alphamapLayers, 1);
+
         // Apply the splatmap to the terrain
         terrainData.SetAlphamaps(0, 0, splatmapData);
 
@@ -1043,6 +1092,102 @@ public class CustomTerrain : MonoBehaviour
 #endif
     }
 
+
+    /// <summary>
+    /// Computes a concavity map from the heightmap using a 3x3 Laplacian kernel.
+    /// Positive values = concave (valleys/crevices), negative = convex (ridges/peaks).
+    /// Output is clamped to [-1, 1].
+    /// </summary>
+    private float[,] ComputeConcavityMap(float[,] heightMap, int width, int height)
+    {
+        float[,] concavity = new float[width, height];
+
+        for (int y = 1; y < height - 1; y++)
+        {
+            for (int x = 1; x < width - 1; x++)
+            {
+                float center = heightMap[x, y];
+
+                // Average of 8 neighbors
+                float neighborAvg = (
+                    heightMap[x - 1, y - 1] + heightMap[x, y - 1] + heightMap[x + 1, y - 1] +
+                    heightMap[x - 1, y]     +                        heightMap[x + 1, y]     +
+                    heightMap[x - 1, y + 1] + heightMap[x, y + 1] + heightMap[x + 1, y + 1]
+                ) / 8f;
+
+                // Positive = concave (lower than neighbors), negative = convex (higher than neighbors)
+                float value = neighborAvg - center;
+
+                // Scale up to make the effect visible (heightmap values are 0-1 normalized)
+                concavity[x, y] = Mathf.Clamp(value * 50f, -1f, 1f);
+            }
+        }
+
+        // Copy edge values from nearest interior pixel
+        for (int x = 0; x < width; x++)
+        {
+            concavity[x, 0] = concavity[x, Mathf.Min(1, height - 1)];
+            concavity[x, height - 1] = concavity[x, Mathf.Max(0, height - 2)];
+        }
+        for (int y = 0; y < height; y++)
+        {
+            concavity[0, y] = concavity[Mathf.Min(1, width - 1), y];
+            concavity[width - 1, y] = concavity[Mathf.Max(0, width - 2), y];
+        }
+
+        return concavity;
+    }
+
+    /// <summary>
+    /// Applies a box blur to the alphamap data to smooth texture transitions.
+    /// Re-normalizes weights after each iteration so they sum to 1.
+    /// </summary>
+    private void SmoothAlphamap(float[,,] splatmapData, int width, int height, int layers, int iterations)
+    {
+        for (int iter = 0; iter < iterations; iter++)
+        {
+            float[,,] smoothed = new float[width, height, layers];
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    for (int l = 0; l < layers; l++)
+                    {
+                        float sum = 0f;
+                        int count = 0;
+
+                        for (int dy = -1; dy <= 1; dy++)
+                        {
+                            for (int dx = -1; dx <= 1; dx++)
+                            {
+                                int nx = Mathf.Clamp(x + dx, 0, width - 1);
+                                int ny = Mathf.Clamp(y + dy, 0, height - 1);
+                                sum += splatmapData[nx, ny, l];
+                                count++;
+                            }
+                        }
+
+                        smoothed[x, y, l] = sum / count;
+                    }
+
+                    // Re-normalize this pixel so weights sum to 1
+                    float total = 0f;
+                    for (int l = 0; l < layers; l++)
+                        total += smoothed[x, y, l];
+
+                    if (total > 0f)
+                    {
+                        for (int l = 0; l < layers; l++)
+                            smoothed[x, y, l] /= total;
+                    }
+                }
+            }
+
+            // Copy back
+            System.Array.Copy(smoothed, splatmapData, smoothed.Length);
+        }
+    }
 
     /// <summary>
     /// Normalizes a vector so all values add up to 1.
